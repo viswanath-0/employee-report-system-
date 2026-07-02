@@ -1,0 +1,278 @@
+"""
+routers/admin.py
+
+Admin-only endpoints (role = admin): company-wide stats, user management,
+global settings, and CSV export.
+"""
+
+import csv
+import io
+from collections import defaultdict
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
+
+from database import get_db
+import crud
+import models
+import schemas
+from utils.jwt import get_current_admin
+
+router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+# ==================== Dashboard stats ==================== #
+@router.get("/stats", response_model=dict)
+def stats(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):
+    today = date.today()
+    today_iso = today.isoformat()
+    month_prefix = today.strftime("%Y-%m")
+
+    total_employees = db.query(models.User).filter(
+        models.User.role == "employee", models.User.is_active == True).count()  # noqa: E712
+    total_managers = db.query(models.User).filter(models.User.role == "manager").count()
+    reports_today = db.query(models.Report).filter(models.Report.date == today_iso).count()
+    pending = db.query(models.Report).filter(models.Report.status == "pending").count()
+    approved_today = db.query(models.Report).filter(
+        models.Report.status == "approved", models.Report.date == today_iso).count()
+    unapproved_month = db.query(models.Report).filter(
+        models.Report.status == "unapproved",
+        models.Report.date.like(f"{month_prefix}-%")).count()
+
+    # --- charts ---
+    # reports per day (last 30 days)
+    start = today - timedelta(days=29)
+    recent = db.query(models.Report).filter(models.Report.date >= start.isoformat()).all()
+    per_day = defaultdict(int)
+    for r in recent:
+        per_day[r.date] += 1
+    reports_per_day = [
+        {"date": (start + timedelta(days=i)).isoformat(),
+         "count": per_day.get((start + timedelta(days=i)).isoformat(), 0)}
+        for i in range(30)
+    ]
+
+    # status distribution
+    dist = defaultdict(int)
+    for (st,) in db.query(models.Report.status).all():
+        dist[st] += 1
+    status_distribution = [{"status": k, "count": v} for k, v in dist.items()]
+
+    # department distribution
+    dept = defaultdict(int)
+    rows = (
+        db.query(models.User.department)
+        .join(models.Report, models.Report.employee_id == models.User.id)
+        .all()
+    )
+    for (d,) in rows:
+        dept[d or "Unassigned"] += 1
+    department_distribution = [{"department": k, "count": v} for k, v in dept.items()]
+
+    return {
+        "cards": {
+            "total_employees": total_employees,
+            "total_managers": total_managers,
+            "reports_today": reports_today,
+            "pending_company_wide": pending,
+            "approved_today": approved_today,
+            "unapproved_this_month": unapproved_month,
+        },
+        "reports_per_day": reports_per_day,
+        "status_distribution": status_distribution,
+        "department_distribution": department_distribution,
+    }
+
+
+# ==================== Employees ==================== #
+@router.get("/employees", response_model=list[dict])
+def all_employees(
+    search: str | None = None,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    q = db.query(models.User).filter(models.User.role == "employee")
+    if search:
+        like = f"%{search}%"
+        q = q.filter((models.User.name.like(like)) | (models.User.email.like(like)))
+    employees = q.order_by(models.User.name).all()
+
+    out = []
+    for e in employees:
+        mgr = crud.get_user(db, e.manager_id) if e.manager_id else None
+        counts = defaultdict(int)
+        for (st,) in db.query(models.Report.status).filter(
+                models.Report.employee_id == e.id).all():
+            counts[st] += 1
+        out.append({
+            "id": e.id, "name": e.name, "email": e.email,
+            "department": e.department, "is_active": e.is_active,
+            "manager_id": e.manager_id, "manager_name": mgr.name if mgr else None,
+            "total_reports": sum(counts.values()),
+            "status_summary": dict(counts),
+        })
+    return out
+
+
+class ReassignIn(BaseModel):
+    manager_id: int
+
+
+@router.put("/employee/{employee_id}/reassign", response_model=dict)
+def reassign_manager(employee_id: int, payload: ReassignIn,
+                     db: Session = Depends(get_db),
+                     _: models.User = Depends(get_current_admin)):
+    emp = crud.get_user(db, employee_id)
+    if not emp or emp.role != "employee":
+        raise HTTPException(404, "Employee not found")
+    mgr = crud.get_user(db, payload.manager_id)
+    if not mgr or mgr.role != "manager":
+        raise HTTPException(400, "Target manager is not valid")
+    emp.manager_id = mgr.id
+    db.commit()
+    return {"ok": True, "manager_id": mgr.id, "manager_name": mgr.name}
+
+
+@router.delete("/employee/{employee_id}", response_model=dict)
+def deactivate_employee(employee_id: int, db: Session = Depends(get_db),
+                        _: models.User = Depends(get_current_admin)):
+    emp = crud.get_user(db, employee_id)
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+    emp.is_active = False
+    db.commit()
+    return {"ok": True, "message": "Account deactivated"}
+
+
+# ==================== Managers ==================== #
+@router.get("/managers", response_model=list[dict])
+def all_managers(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):
+    managers = db.query(models.User).filter(models.User.role == "manager").order_by(
+        models.User.name).all()
+    out = []
+    for m in managers:
+        team_size = db.query(models.User).filter(models.User.manager_id == m.id).count()
+        out.append({
+            "id": m.id, "name": m.name, "email": m.email,
+            "department": m.department, "team_size": team_size,
+            "is_active": m.is_active,
+        })
+    return out
+
+
+class AddManagerIn(BaseModel):
+    name: str = Field(min_length=2)
+    email: EmailStr
+    password: str = Field(min_length=8)
+    department: str | None = None
+
+
+@router.post("/managers", response_model=schemas.UserOut, status_code=201)
+def add_manager(payload: AddManagerIn, db: Session = Depends(get_db),
+                _: models.User = Depends(get_current_admin)):
+    if crud.get_user_by_email(db, payload.email.lower().strip()):
+        raise HTTPException(400, "Email already in use")
+    return crud.create_user(
+        db, name=payload.name, email=payload.email, password=payload.password,
+        department=payload.department, role="manager",
+    )
+
+
+# ==================== Reports (filterable) ==================== #
+def _filtered_reports(db, employee_id, manager_id, department, status, date_from, date_to):
+    q = db.query(models.Report).join(models.User, models.Report.employee_id == models.User.id)
+    if employee_id:
+        q = q.filter(models.Report.employee_id == employee_id)
+    if manager_id:
+        q = q.filter(models.User.manager_id == manager_id)
+    if department:
+        q = q.filter(models.User.department == department)
+    if status:
+        q = q.filter(models.Report.status == status)
+    if date_from:
+        q = q.filter(models.Report.date >= date_from)
+    if date_to:
+        q = q.filter(models.Report.date <= date_to)
+    return q.order_by(models.Report.date.desc())
+
+
+@router.get("/reports", response_model=list[schemas.ReportOut])
+def all_reports(
+    employee_id: int | None = None,
+    manager_id: int | None = None,
+    department: str | None = None,
+    status: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = Query(500, le=2000),
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    return _filtered_reports(db, employee_id, manager_id, department, status,
+                             date_from, date_to).limit(limit).all()
+
+
+@router.get("/export/reports")
+def export_reports(
+    employee_id: int | None = None,
+    manager_id: int | None = None,
+    department: str | None = None,
+    status: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    reports = _filtered_reports(db, employee_id, manager_id, department, status,
+                                date_from, date_to).all()
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Report ID", "Employee", "Email", "Department", "Date",
+                     "Status", "Late", "Tasks", "Deadline", "Correction"])
+    for r in reports:
+        emp = r.employee
+        writer.writerow([
+            r.id, emp.name if emp else "", emp.email if emp else "",
+            emp.department if emp else "", r.date, r.status,
+            "Yes" if r.is_late else "No", len(r.tasks), r.deadline,
+            (r.correction_message or "").replace("\n", " "),
+        ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=reports_export.csv"},
+    )
+
+
+# ==================== Departments ==================== #
+@router.get("/departments", response_model=list[dict])
+def departments(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):
+    counts = defaultdict(lambda: {"employees": 0, "managers": 0})
+    for u in db.query(models.User).all():
+        d = u.department or "Unassigned"
+        if u.role == "employee":
+            counts[d]["employees"] += 1
+        elif u.role == "manager":
+            counts[d]["managers"] += 1
+    return [{"name": k, **v} for k, v in sorted(counts.items())]
+
+
+# ==================== Settings ==================== #
+@router.get("/settings", response_model=schemas.SettingsOut)
+def get_settings(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):
+    return crud.get_settings(db)
+
+
+@router.put("/settings", response_model=schemas.SettingsOut)
+def update_settings(payload: schemas.SettingsUpdate, db: Session = Depends(get_db),
+                    _: models.User = Depends(get_current_admin)):
+    s = crud.get_settings(db)
+    for field, value in payload.model_dump(exclude_none=True).items():
+        setattr(s, field, value)
+    db.commit()
+    db.refresh(s)
+    return s

@@ -1,0 +1,29 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.db
+*.sqlite3
+
+# ---- Secrets (never push) ----
+.env
+.env.local
+backend/.env
+frontend/.env
+
+# ---- Node / frontend build ----
+node_modules/
+dist/
+dist-ssr/
+.vercel
+
+# ---- Uploads: ignore contents, keep the folder ----
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/

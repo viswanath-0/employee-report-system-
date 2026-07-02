@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+*.sqlite3
+
+# Env
+.env
+.env.local
+
+# Node / frontend
+node_modules/
+dist/
+.vercel
+
+# Uploads (keep the folder, ignore contents)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# OS / editors
+.DS_Store
+Thumbs.db
