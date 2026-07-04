@@ -30,7 +30,7 @@ export default function AllManagers() {
         description="Every team lead and the size of their team."
         actions={
           <Button onClick={() => setShowAdd(true)}>
-            <UserPlus className="h-4 w-4" /> Add Employee/Manager
+            <UserPlus className="h-4 w-4" /> Add Manager
           </Button>
         }
       />
@@ -45,7 +45,7 @@ export default function AllManagers() {
             icon={UserCog}
             title="No managers yet"
             description="Use “Add Employee/Manager” to provision your first team lead."
-            action={<Button onClick={() => setShowAdd(true)}><UserPlus className="h-4 w-4" /> Add Employee/Manager</Button>}
+            action={<Button onClick={() => setShowAdd(true)}><UserPlus className="h-4 w-4" /> Add Manager</Button>}
           />
         ) : (
           <Table>
@@ -84,7 +84,7 @@ export default function AllManagers() {
         )}
       </Card>
 
-      <AddDirectoryUserModal open={showAdd} onClose={() => setShowAdd(false)} onCreated={() => load()} />
+      <AddDirectoryUserModal open={showAdd} onClose={() => setShowAdd(false)} onCreated={() => load()} fixedRole="manager" />
     </div>
   )
 }

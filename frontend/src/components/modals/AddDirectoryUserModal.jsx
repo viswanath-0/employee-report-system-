@@ -32,8 +32,9 @@ function CopyRow({ label, value }) {
   )
 }
 
-export function AddDirectoryUserModal({ open, onClose, onCreated }) {
-  const [form, setForm] = useState(BLANK)
+export function AddDirectoryUserModal({ open, onClose, onCreated, fixedRole }) {
+  const roleDefault = fixedRole || 'employee'
+  const [form, setForm] = useState({ ...BLANK, role: roleDefault })
   const [departments, setDepartments] = useState([])
   const [managers, setManagers] = useState([])
   const [busy, setBusy] = useState(false)
@@ -41,7 +42,7 @@ export function AddDirectoryUserModal({ open, onClose, onCreated }) {
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...BLANK, joining_date: todayISO() })
+    setForm({ ...BLANK, role: roleDefault, joining_date: todayISO() })
     setCreated(null)
     configApi.public().then((r) => {
       const cat = r.data.department_catalog || []
@@ -80,14 +81,14 @@ export function AddDirectoryUserModal({ open, onClose, onCreated }) {
 
   const addAnother = () => {
     setCreated(null)
-    setForm({ ...BLANK, department_code: departments[0]?.code || '', joining_date: todayISO() })
+    setForm({ ...BLANK, role: roleDefault, department_code: departments[0]?.code || '', joining_date: todayISO() })
   }
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      title={created ? 'Account created' : 'Add Employee / Manager'}
+      title={created ? 'Account created' : (fixedRole ? `Add ${fixedRole[0].toUpperCase()}${fixedRole.slice(1)}` : 'Add Employee / Manager')}
       description={created ? '' : 'The system generates the Company ID and a temporary password, then emails the credentials.'}
       footer={
         created ? (
@@ -122,21 +123,23 @@ export function AddDirectoryUserModal({ open, onClose, onCreated }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
-            {['employee', 'manager'].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setForm({ ...form, role: r })}
-                className={
-                  'rounded-md py-2 text-sm font-medium capitalize transition ' +
-                  (form.role === r ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')
-                }
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+          {!fixedRole && (
+            <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+              {['employee', 'manager'].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setForm({ ...form, role: r })}
+                  className={
+                    'rounded-md py-2 text-sm font-medium capitalize transition ' +
+                    (form.role === r ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')
+                  }
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div>
             <Label>Full name</Label>

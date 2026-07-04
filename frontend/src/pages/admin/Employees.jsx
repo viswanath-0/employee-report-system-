@@ -117,7 +117,7 @@ export default function AllEmployees() {
         description="Every employee across the company, with their reporting activity."
         actions={
           <Button onClick={() => setShowAdd(true)}>
-            <UserPlus className="h-4 w-4" /> Add Employee/Manager
+            <UserPlus className="h-4 w-4" /> Add Employee
           </Button>
         }
       />
@@ -247,6 +247,7 @@ export default function AllEmployees() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onCreated={() => load()}
+        fixedRole="employee"
       />
     </div>
   )
