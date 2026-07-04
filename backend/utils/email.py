@@ -12,6 +12,7 @@ These functions are safe to pass to FastAPI `BackgroundTasks.add_task(...)`.
 """
 
 import asyncio
+import html
 import logging
 
 from config import settings
@@ -111,16 +112,17 @@ def email_leave_approved(to: str, employee_name: str, leave_date: str, manager_n
 def email_credentials(to: str, full_name: str, company_id: str, temp_password: str,
                       department: str, role: str) -> None:
     from config import settings as _s
+    e = html.escape   # so a '&' / '<' in a password or name can't break the HTML email
     send_email(
         to,
         "Your Employee Report System account is ready",
         _wrap(
             "Welcome — here are your login details",
-            f"Hi {full_name},<br/><br/>An account has been created for you.<br/><br/>"
-            f"<b>Department:</b> {department}<br/>"
-            f"<b>Role:</b> {role.title()}<br/>"
-            f"<b>Login ID (Company ID):</b> <code>{company_id}</code><br/>"
-            f"<b>Temporary password:</b> <code>{temp_password}</code><br/><br/>"
+            f"Hi {e(full_name)},<br/><br/>An account has been created for you.<br/><br/>"
+            f"<b>Department:</b> {e(department)}<br/>"
+            f"<b>Role:</b> {e(role.title())}<br/>"
+            f"<b>Login ID (Company ID):</b> <code>{e(company_id)}</code><br/>"
+            f"<b>Temporary password:</b> <code>{e(temp_password)}</code><br/><br/>"
             f"Log in at <a href='{_s.FRONTEND_URL}/login'>{_s.FRONTEND_URL}/login</a> — "
             f"you'll be asked to set your own password on first sign-in.",
         ),

@@ -66,9 +66,9 @@ def generate_company_id(db, role: str, dept_code: str, joining_year: int) -> str
 def generate_temp_password(length: int = 12) -> str:
     """A strong random temp password guaranteed to contain upper/lower/digit/special."""
     length = max(length, 8)
-    pools = [string.ascii_uppercase, string.ascii_lowercase, string.digits, "!@#$%^&*"]
+    pools = [string.ascii_uppercase, string.ascii_lowercase, string.digits, "!@#$%*-_"]
     chars = [secrets.choice(p) for p in pools]  # one of each class
-    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    alphabet = string.ascii_letters + string.digits + "!@#$%*-_"
     chars += [secrets.choice(alphabet) for _ in range(length - len(chars))]
     secrets.SystemRandom().shuffle(chars)
     return "".join(chars)
