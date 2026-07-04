@@ -1,11 +1,12 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { ProtectedRoute, PublicRoute } from '@/components/layouts/ProtectedRoute'
+import { ProtectedRoute, PublicRoute, RequireAuth } from '@/components/layouts/ProtectedRoute'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { useAuth } from '@/context/AuthContext'
 import { roleHome } from '@/utils/format'
 
 import Login from '@/pages/auth/Login'
-import Register from '@/pages/auth/Register'
+import CreateAccount from '@/pages/auth/CreateAccount'
+import SetPassword from '@/pages/auth/SetPassword'
 
 import EmployeeDashboard from '@/pages/employee/Dashboard'
 import MyReports from '@/pages/employee/MyReports'
@@ -38,7 +39,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/create-account" element={<PublicRoute><CreateAccount /></PublicRoute>} />
+      <Route path="/set-password" element={<RequireAuth><SetPassword /></RequireAuth>} />
 
       {/* Employee */}
       <Route

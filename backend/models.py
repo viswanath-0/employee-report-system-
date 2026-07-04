@@ -36,12 +36,17 @@ class User(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     name          = Column(String(120), nullable=False)
     email         = Column(String(160), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)   # null until the account is claimed
     department    = Column(String(80), nullable=True)
     role          = Column(String(20), default="employee", nullable=False)
     manager_id    = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     is_active     = Column(Boolean, default=True, nullable=False)
     created_at    = Column(DateTime, default=datetime.now, nullable=False)
+
+    # ---- Company-ID provisioning (Phase 2; columns created by migration 001) ----
+    company_id     = Column(String(40), unique=True, nullable=True, index=True)  # the login ID
+    personal_email = Column(String(160), nullable=True)
+    account_status = Column(String(30), default="active", nullable=False)  # unclaimed|active|password_reset_required
 
     # self-referential manager relationship
     manager   = relationship("User", remote_side=[id], backref="team_members")

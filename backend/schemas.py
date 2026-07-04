@@ -22,6 +22,8 @@ class UserOut(BaseModel):
     role: str
     manager_id: Optional[int] = None
     is_active: bool = True
+    company_id: Optional[str] = None
+    account_status: str = "active"
     created_at: datetime
 
 
@@ -46,7 +48,9 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Accepts a Company ID (new provisioned users) or an email (existing users).
+    login_id: Optional[str] = None
+    email: Optional[str] = None
     password: str
 
 
@@ -60,6 +64,42 @@ class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     department: Optional[str] = None
     password: Optional[str] = Field(default=None, min_length=8, max_length=128)
+
+
+# ---------- Provisioning / activation (Phase 2) ---------- #
+class AdminCreateUserIn(BaseModel):
+    full_name: str = Field(min_length=2, max_length=120)
+    department_code: str
+    joining_date: str = Field(description="ISO date YYYY-MM-DD")
+    role: Literal["employee", "manager"]
+    personal_email: EmailStr
+    manager_id: Optional[int] = None   # optional: assign a new employee to a manager
+
+
+class AdminCreateUserOut(BaseModel):
+    company_id: str
+    full_name: str
+    department: str
+    role: str
+    personal_email: EmailStr
+    temp_password: str      # returned to the admin so they always have it
+    email_sent: bool
+
+
+class ActivateIn(BaseModel):
+    company_id: str
+    personal_email: EmailStr
+
+
+class ActivateOut(BaseModel):
+    ok: bool
+    message: str
+    admin_contact: Optional[str] = None
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=1, max_length=128)
 
 
 # ==================== Files ==================== #
@@ -242,3 +282,5 @@ class PublicConfig(BaseModel):
     work_day_start: str
     work_day_end: str
     deadline_time: str
+    admin_contact_email: str = ""
+    department_catalog: list[dict] = []

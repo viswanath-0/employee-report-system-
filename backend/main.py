@@ -90,10 +90,13 @@ def root():
 @app.get("/config", response_model=schemas.PublicConfig, tags=["Root"])
 def public_config(db: Session = Depends(get_db)):
     """Unauthenticated config used by the login/register screens."""
+    from utils.company_id import DEPARTMENT_CATALOG
     s = crud.get_settings(db)
     return schemas.PublicConfig(
         company_name=s.company_name,
         work_day_start=s.work_day_start,
         work_day_end=s.work_day_end,
         deadline_time=s.deadline_time,
+        admin_contact_email=settings.ADMIN_CONTACT_EMAIL,
+        department_catalog=DEPARTMENT_CATALOG,
     )

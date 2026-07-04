@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
 
+    # -------------------- Provisioning / Gmail SMTP (Phase 2) -------------------- #
+    GMAIL_ADDRESS: str = "suddapallivviswanath@gmail.com"        # sender address
+    GMAIL_APP_PASSWORD: str = ""                                  # 16-char Google App Password (env only!)
+    ADMIN_CONTACT_EMAIL: str = "suddapallivviswanath@gmail.com"   # shown on "Account not found"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

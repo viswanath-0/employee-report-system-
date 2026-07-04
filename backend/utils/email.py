@@ -20,7 +20,13 @@ log = logging.getLogger("email")
 
 
 def _configured() -> bool:
-    return bool(settings.EMAIL_ENABLED and settings.MAIL_USERNAME and settings.MAIL_PASSWORD)
+    # Gmail App Password path (Phase 2): send only when a real app password is present.
+    return bool(settings.GMAIL_APP_PASSWORD and settings.GMAIL_ADDRESS)
+
+
+def is_configured() -> bool:
+    """Public helper so routes can report whether an email actually went out."""
+    return _configured()
 
 
 def send_email(to: str, subject: str, html_body: str) -> None:
@@ -41,14 +47,14 @@ def send_email(to: str, subject: str, html_body: str) -> None:
         from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 
         conf = ConnectionConfig(
-            MAIL_USERNAME=settings.MAIL_USERNAME,
-            MAIL_PASSWORD=settings.MAIL_PASSWORD,
-            MAIL_FROM=settings.MAIL_FROM,
+            MAIL_USERNAME=settings.GMAIL_ADDRESS,
+            MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD,
+            MAIL_FROM=settings.GMAIL_ADDRESS,
             MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-            MAIL_PORT=settings.MAIL_PORT,
-            MAIL_SERVER=settings.MAIL_SERVER,
-            MAIL_STARTTLS=settings.MAIL_STARTTLS,
-            MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
+            MAIL_PORT=587,
+            MAIL_SERVER="smtp.gmail.com",
+            MAIL_STARTTLS=True,
+            MAIL_SSL_TLS=False,
             USE_CREDENTIALS=True,
             VALIDATE_CERTS=True,
         )
@@ -98,6 +104,25 @@ def email_leave_approved(to: str, employee_name: str, leave_date: str, manager_n
             "Leave Approved ✅",
             f"Hi {employee_name},<br/><br/>Your leave on <b>{leave_date}</b> has been "
             f"<b>approved</b> by {manager_name}.<br/><br/>Enjoy your day off!",
+        ),
+    )
+
+
+def email_credentials(to: str, full_name: str, company_id: str, temp_password: str,
+                      department: str, role: str) -> None:
+    from config import settings as _s
+    send_email(
+        to,
+        "Your Employee Report System account is ready",
+        _wrap(
+            "Welcome — here are your login details",
+            f"Hi {full_name},<br/><br/>An account has been created for you.<br/><br/>"
+            f"<b>Department:</b> {department}<br/>"
+            f"<b>Role:</b> {role.title()}<br/>"
+            f"<b>Login ID (Company ID):</b> <code>{company_id}</code><br/>"
+            f"<b>Temporary password:</b> <code>{temp_password}</code><br/><br/>"
+            f"Log in at <a href='{_s.FRONTEND_URL}/login'>{_s.FRONTEND_URL}/login</a> — "
+            f"you'll be asked to set your own password on first sign-in.",
         ),
     )
 

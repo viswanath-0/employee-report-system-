@@ -17,7 +17,18 @@ export function ProtectedRoute({ role, children }) {
   const location = useLocation()
   if (loading) return <FullScreenLoader />
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />
+  // Force the first-login password change before any dashboard is reachable.
+  if (user.account_status === 'password_reset_required' && location.pathname !== '/set-password')
+    return <Navigate to="/set-password" replace />
   if (role && user.role !== role) return <Navigate to={roleHome(user.role)} replace />
+  return children
+}
+
+// Auth-only guard (any role/status) — used by /set-password.
+export function RequireAuth({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return <FullScreenLoader />
+  if (!user) return <Navigate to="/login" replace />
   return children
 }
 

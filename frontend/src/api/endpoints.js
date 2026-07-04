@@ -2,8 +2,9 @@
 import api from './axios'
 
 export const authApi = {
-  register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  activate: (data) => api.post('/auth/activate', data),
+  changePassword: (data) => api.post('/auth/change-password', data),
   me: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/me', data),
   managers: () => api.get('/auth/managers'),
@@ -68,6 +69,7 @@ export const adminApi = {
   employees: (search) => api.get('/admin/employees', { params: search ? { search } : {} }),
   managers: () => api.get('/admin/managers'),
   addManager: (data) => api.post('/admin/managers', data),
+  createDirectoryUser: (data) => api.post('/admin/directory', data),
   reassign: (id, managerId) => api.put(`/admin/employee/${id}/reassign`, { manager_id: managerId }),
   deactivate: (id) => api.delete(`/admin/employee/${id}`),
   reports: (params) => api.get('/admin/reports', { params }),

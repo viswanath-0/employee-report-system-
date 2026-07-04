@@ -10,7 +10,7 @@ import io
 from collections import defaultdict
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
@@ -19,9 +19,75 @@ from database import get_db
 import crud
 import models
 import schemas
-from utils.jwt import get_current_admin
+from utils.jwt import get_current_admin, hash_password
+from utils.company_id import (
+    generate_company_id, generate_temp_password, valid_dept_code, dept_name,
+)
+from utils.email import email_credentials, is_configured
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+# ==================== Directory provisioning (Phase 2) ==================== #
+@router.post("/directory", response_model=schemas.AdminCreateUserOut, status_code=201)
+def create_directory_user(
+    payload: schemas.AdminCreateUserIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    """Admin-initiated creation (spec 3a): auto-generate the Company ID + a temp
+    password, store the row as `password_reset_required`, and email the credentials."""
+    if not valid_dept_code(payload.department_code):
+        raise HTTPException(400, f"Unknown department code '{payload.department_code}'")
+    try:
+        joining_year = int(payload.joining_date.split("-")[0])
+    except Exception:
+        raise HTTPException(400, "joining_date must be an ISO date (YYYY-MM-DD)")
+
+    personal_email = payload.personal_email.lower().strip()
+    if crud.get_user_by_email(db, personal_email):
+        raise HTTPException(400, "A user with this personal email already exists")
+
+    manager_id = None
+    if payload.role == "employee" and payload.manager_id:
+        mgr = crud.get_user(db, payload.manager_id)
+        if not mgr or mgr.role != "manager":
+            raise HTTPException(400, "Selected manager is not valid")
+        manager_id = mgr.id
+
+    company_id = generate_company_id(db, payload.role, payload.department_code, joining_year)
+    department = dept_name(payload.department_code)
+    temp = generate_temp_password()
+
+    user = models.User(
+        name=payload.full_name.strip(),
+        email=personal_email,            # login is by company_id; email kept for records/uniqueness
+        personal_email=personal_email,
+        company_id=company_id,
+        department=department,
+        role=payload.role,
+        manager_id=manager_id,
+        password_hash=hash_password(temp),
+        account_status="password_reset_required",
+        is_active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    background.add_task(
+        email_credentials, personal_email, user.name, company_id, temp, department, user.role,
+    )
+    return schemas.AdminCreateUserOut(
+        company_id=company_id,
+        full_name=user.name,
+        department=department,
+        role=user.role,
+        personal_email=personal_email,
+        temp_password=temp,
+        email_sent=is_configured(),
+    )
 
 
 # ==================== Dashboard stats ==================== #

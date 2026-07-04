@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Users, UserCog, UserX, Eye } from 'lucide-react'
+import { Search, Users, UserCog, UserX, Eye, UserPlus } from 'lucide-react'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Table, THead, TH, TBody, TR, TD } from '@/components/ui/table'
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/components/ui/avatar'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
+import { AddDirectoryUserModal } from '@/components/modals/AddDirectoryUserModal'
 import { adminApi } from '@/api/endpoints'
 import { statusMeta } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -50,6 +51,7 @@ export default function AllEmployees() {
   const [managerId, setManagerId] = useState('')
   const [deactivateFor, setDeactivateFor] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
 
   const load = (searchTerm = search) => {
     setLoading(true)
@@ -110,7 +112,15 @@ export default function AllEmployees() {
 
   return (
     <div>
-      <PageHeader title="All Employees" description="Every employee across the company, with their reporting activity." />
+      <PageHeader
+        title="All Employees"
+        description="Every employee across the company, with their reporting activity."
+        actions={
+          <Button onClick={() => setShowAdd(true)}>
+            <UserPlus className="h-4 w-4" /> Add Employee/Manager
+          </Button>
+        }
+      />
 
       <Card className="mb-4 p-4">
         <form onSubmit={onSearch} className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -231,6 +241,12 @@ export default function AllEmployees() {
         confirmText="Deactivate"
         variant="danger"
         loading={busy}
+      />
+
+      <AddDirectoryUserModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={() => load()}
       />
     </div>
   )

@@ -43,13 +43,8 @@ export function AuthProvider({ children }) {
     return data.user
   }
 
-  const login = async (email, password) => {
-    const { data } = await authApi.login({ email, password })
-    return persist(data)
-  }
-
-  const register = async (payload) => {
-    const { data } = await authApi.register(payload)
+  const login = async (identifier, password) => {
+    const { data } = await authApi.login({ login_id: identifier, password })
     return persist(data)
   }
 
@@ -69,7 +64,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )
