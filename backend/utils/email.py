@@ -1,66 +1,69 @@
 """
 utils/email.py
 
-Thin, failure-tolerant email layer built on FastAPI-Mail.
+Email via Brevo's HTTPS transactional API (https://api.brevo.com/v3/smtp/email).
 
-If email is disabled (settings.EMAIL_ENABLED = False) or credentials are
-missing, messages are logged to the console instead of being sent — so the
-rest of the app keeps working in local dev. Email sending never raises into
-the request path.
+Why not SMTP? Railway (and most cloud hosts) block outbound SMTP ports, so a
+Gmail/SMTP send just times out. Brevo's HTTP API goes over port 443, which is
+allowed — so email works from the deployed server.
 
-These functions are safe to pass to FastAPI `BackgroundTasks.add_task(...)`.
+If BREVO_API_KEY is unset, messages are logged to the console instead of sent
+(so local dev / provisioning still works). Sending never raises into the request
+path, and these functions are safe to pass to FastAPI BackgroundTasks.
+
+Sender: settings.GMAIL_ADDRESS must be a VERIFIED sender in your Brevo account.
 """
 
-import asyncio
 import html
+import json
 import logging
+import urllib.error
+import urllib.request
 
 from config import settings
 
 log = logging.getLogger("email")
 
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
+
 
 def _configured() -> bool:
-    # Gmail App Password path (Phase 2): send only when a real app password is present.
-    return bool(settings.GMAIL_APP_PASSWORD and settings.GMAIL_ADDRESS)
+    return bool(settings.BREVO_API_KEY)
 
 
 def is_configured() -> bool:
-    """Public helper so routes can report whether an email actually went out."""
+    """Public helper so routes can report whether email is set up."""
     return _configured()
 
 
-def test_send(to: str) -> dict:
-    """Diagnostic: a SYNCHRONOUS send that RETURNS the real outcome (unlike send_email,
-    which swallows errors so it never breaks a request). Used by /admin/email-test."""
-    if not _configured():
-        return {"ok": False, "configured": False,
-                "detail": "GMAIL_APP_PASSWORD is not set on the server."}
+def _brevo_post(to: str, subject: str, html_body: str):
+    """POST one email to Brevo. Returns (ok: bool, detail: str). Never raises."""
+    payload = json.dumps({
+        "sender": {"email": settings.GMAIL_ADDRESS, "name": settings.MAIL_FROM_NAME},
+        "to": [{"email": to}],
+        "subject": subject,
+        "htmlContent": html_body,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        BREVO_URL, data=payload, method="POST",
+        headers={
+            "api-key": settings.BREVO_API_KEY,
+            "accept": "application/json",
+            "content-type": "application/json",
+        },
+    )
     try:
-        from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
-        conf = ConnectionConfig(
-            MAIL_USERNAME=settings.GMAIL_ADDRESS,
-            MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD.replace(" ", ""),
-            MAIL_FROM=settings.GMAIL_ADDRESS,
-            MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-            MAIL_PORT=587, MAIL_SERVER="smtp.gmail.com",
-            MAIL_STARTTLS=True, MAIL_SSL_TLS=False,
-            USE_CREDENTIALS=True, VALIDATE_CERTS=True,
-        )
-        msg = MessageSchema(
-            subject="Employee Report System — email diagnostic",
-            recipients=[to],
-            body=_wrap("Email diagnostic", "If you can read this, the server can send email."),
-            subtype=MessageType.html,
-        )
-        asyncio.run(FastMail(conf).send_message(msg))
-        return {"ok": True, "configured": True, "detail": f"Sent to {to}."}
-    except Exception as e:
-        return {"ok": False, "configured": True, "detail": f"{type(e).__name__}: {e}"}
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return True, f"{resp.status} OK"
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")
+        return False, f"HTTP {e.code}: {body}"
+    except Exception as e:  # pragma: no cover
+        return False, f"{type(e).__name__}: {e}"
 
 
 def send_email(to: str, subject: str, html_body: str) -> None:
-    """Send a single HTML email. Never raises."""
+    """Send one HTML email. Never raises."""
     if not to:
         return
     if not _configured():
@@ -70,39 +73,31 @@ def send_email(to: str, subject: str, html_body: str) -> None:
             f"  Body    : {_strip(html_body)}\n"
             f"-------------------------------------------\n"
         )
-        # ascii-safe so it never crashes on a cp1252 console
         print(msg.encode("ascii", "replace").decode("ascii"))
         return
-    try:
-        from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
-
-        conf = ConnectionConfig(
-            MAIL_USERNAME=settings.GMAIL_ADDRESS,
-            MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD.replace(" ", ""),  # Gmail shows it spaced
-            MAIL_FROM=settings.GMAIL_ADDRESS,
-            MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-            MAIL_PORT=587,
-            MAIL_SERVER="smtp.gmail.com",
-            MAIL_STARTTLS=True,
-            MAIL_SSL_TLS=False,
-            USE_CREDENTIALS=True,
-            VALIDATE_CERTS=True,
-        )
-        message = MessageSchema(
-            subject=subject, recipients=[to], body=html_body, subtype=MessageType.html
-        )
-        # send_message is a coroutine; sync routes run in a threadpool so
-        # asyncio.run() here is safe (no running loop in this thread).
-        asyncio.run(FastMail(conf).send_message(message))
+    ok, detail = _brevo_post(to, subject, html_body)
+    if ok:
         log.info("Email sent to %s: %s", to, subject)
-    except Exception as e:  # pragma: no cover
-        log.warning("Email send failed (%s): %s", to, e)
-        print(f"[EMAIL send failed → {to}] {e}")
+    else:
+        log.warning("Email send failed (%s): %s", to, detail)
+        print(f"[EMAIL send failed -> {to}] {detail}")
 
 
-def _strip(html: str) -> str:
+def test_send(to: str) -> dict:
+    """Diagnostic send that RETURNS the real outcome (used by /admin/email-test)."""
+    if not _configured():
+        return {"ok": False, "configured": False,
+                "detail": "BREVO_API_KEY is not set on the server."}
+    ok, detail = _brevo_post(
+        to, "Employee Report System — email diagnostic",
+        _wrap("Email diagnostic", "If you can read this, the server sends email via Brevo."),
+    )
+    return {"ok": ok, "configured": True, "detail": detail}
+
+
+def _strip(html_str: str) -> str:
     import re
-    return re.sub(r"<[^>]+>", " ", html).strip()
+    return re.sub(r"<[^>]+>", " ", html_str).strip()
 
 
 def _wrap(title: str, body_html: str) -> str:
@@ -127,21 +122,21 @@ def _wrap(title: str, body_html: str) -> str:
 
 # -------------------- High-level notifications -------------------- #
 def email_leave_approved(to: str, employee_name: str, leave_date: str, manager_name: str) -> None:
+    e = html.escape
     send_email(
         to,
         "Your leave request has been approved",
         _wrap(
-            "Leave Approved ✅",
-            f"Hi {employee_name},<br/><br/>Your leave on <b>{leave_date}</b> has been "
-            f"<b>approved</b> by {manager_name}.<br/><br/>Enjoy your day off!",
+            "Leave Approved",
+            f"Hi {e(employee_name)},<br/><br/>Your leave on <b>{e(leave_date)}</b> has been "
+            f"<b>approved</b> by {e(manager_name)}.<br/><br/>Enjoy your day off!",
         ),
     )
 
 
 def email_credentials(to: str, full_name: str, company_id: str, temp_password: str,
                       department: str, role: str) -> None:
-    from config import settings as _s
-    e = html.escape   # so a '&' / '<' in a password or name can't break the HTML email
+    e = html.escape   # so a special char in a password or name can't break the HTML email
     send_email(
         to,
         "Your Employee Report System account is ready",
@@ -152,7 +147,7 @@ def email_credentials(to: str, full_name: str, company_id: str, temp_password: s
             f"<b>Role:</b> {e(role.title())}<br/>"
             f"<b>Login ID (Company ID):</b> <code>{e(company_id)}</code><br/>"
             f"<b>Temporary password:</b> <code>{e(temp_password)}</code><br/><br/>"
-            f"Log in at <a href='{_s.FRONTEND_URL}/login'>{_s.FRONTEND_URL}/login</a> — "
+            f"Log in at <a href='{settings.FRONTEND_URL}/login'>{settings.FRONTEND_URL}/login</a> — "
             f"you'll be asked to set your own password on first sign-in.",
         ),
     )
@@ -160,15 +155,16 @@ def email_credentials(to: str, full_name: str, company_id: str, temp_password: s
 
 def email_escalation(to: str, manager_name: str, employee_name: str,
                      report_date: str, message: str, link: str) -> None:
+    e = html.escape
     send_email(
         to,
         f"Escalation raised by {employee_name}",
         _wrap(
-            "Report Escalation 🚩",
-            f"Hi {manager_name},<br/><br/><b>{employee_name}</b> has escalated a pending "
-            f"report dated <b>{report_date}</b>.<br/><br/>"
-            f"<i>“{message}”</i><br/><br/>"
-            f"<a href='{link}' style='display:inline-block;background:#6366F1;color:#fff;"
+            "Report Escalation",
+            f"Hi {e(manager_name)},<br/><br/><b>{e(employee_name)}</b> has escalated a pending "
+            f"report dated <b>{e(report_date)}</b>.<br/><br/>"
+            f"<i>&ldquo;{e(message)}&rdquo;</i><br/><br/>"
+            f"<a href='{e(link)}' style='display:inline-block;background:#6366F1;color:#fff;"
             f"padding:10px 18px;border-radius:8px;text-decoration:none'>Review the report</a>",
         ),
     )
