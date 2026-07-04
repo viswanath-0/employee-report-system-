@@ -48,7 +48,7 @@ def send_email(to: str, subject: str, html_body: str) -> None:
 
         conf = ConnectionConfig(
             MAIL_USERNAME=settings.GMAIL_ADDRESS,
-            MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD,
+            MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD.replace(" ", ""),  # Gmail shows it spaced
             MAIL_FROM=settings.GMAIL_ADDRESS,
             MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
             MAIL_PORT=587,
