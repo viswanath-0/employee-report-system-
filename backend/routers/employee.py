@@ -242,7 +242,7 @@ def apply_leave(
     db.commit()
     db.refresh(report)
 
-    _notify_manager(db, user, payload.date, "leave request", link="/manager/leaves")
+    _notify_manager(db, user, payload.date, "leave request", link="/manager/pending")
     return report
 
 

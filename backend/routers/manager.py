@@ -52,7 +52,8 @@ def manager_stats(db: Session = Depends(get_db),
                 "pending_escalations": 0}
 
     pending = db.query(models.Report).filter(
-        models.Report.employee_id.in_(ids), models.Report.status == "pending").count()
+        models.Report.employee_id.in_(ids),
+        models.Report.status.in_(["pending", "escalated", "leave"])).count()
     approved_today = db.query(models.Report).filter(
         models.Report.employee_id.in_(ids), models.Report.status == "approved",
         models.Report.date == today).count()
@@ -122,7 +123,7 @@ def pending_reports(db: Session = Depends(get_db),
     return (
         db.query(models.Report)
         .filter(models.Report.employee_id.in_(ids),
-                models.Report.status.in_(["pending", "escalated"]))
+                models.Report.status.in_(["pending", "escalated", "leave"]))
         .order_by(models.Report.date.desc())
         .all()
     )
