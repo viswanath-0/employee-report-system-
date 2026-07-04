@@ -35,18 +35,6 @@ class ManagerOption(BaseModel):
     department: Optional[str] = None
 
 
-class RegisterRequest(BaseModel):
-    name: str = Field(min_length=2, max_length=120)
-    email: EmailStr
-    # length is enforced (with a friendly message) by validate_password() in the router,
-    # alongside the uppercase/lowercase/number/special-char rules.
-    password: str = Field(min_length=1, max_length=128)
-    department: Optional[str] = None
-    role: Literal["employee", "manager"] = "employee"
-    manager_id: Optional[int] = None       # employee → chosen manager
-    manager_code: Optional[str] = None     # manager  → secret authorization code
-
-
 class LoginRequest(BaseModel):
     # Accepts a Company ID (new provisioned users) or an email (existing users).
     login_id: Optional[str] = None
@@ -258,7 +246,6 @@ class NotificationOut(BaseModel):
 class SettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     deadline_time: str
-    manager_code: str
     company_name: str
     logo_path: Optional[str] = None
     email_enabled: bool
@@ -268,7 +255,6 @@ class SettingsOut(BaseModel):
 
 class SettingsUpdate(BaseModel):
     deadline_time: Optional[str] = None
-    manager_code: Optional[str] = None
     company_name: Optional[str] = None
     logo_path: Optional[str] = None
     email_enabled: Optional[bool] = None

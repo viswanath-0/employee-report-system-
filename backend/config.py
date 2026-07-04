@@ -46,7 +46,6 @@ class Settings(BaseSettings):
     WORK_DAY_START: str = "09:00"   # timeline start (24h HH:MM)
     WORK_DAY_END: str = "21:00"     # timeline end   (24h HH:MM)
     DEFAULT_DEADLINE: str = "20:00"  # 8:00 PM
-    DEFAULT_MANAGER_CODE: str = "MANAGER-2024"
 
     # -------------------- Bootstrap admin -------------------- #
     ADMIN_NAME: str = "System Admin"

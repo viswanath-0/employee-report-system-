@@ -53,7 +53,6 @@ def get_settings(db: Session) -> models.Setting:
         s = models.Setting(
             id=1,
             deadline_time=cfg.DEFAULT_DEADLINE,
-            manager_code=cfg.DEFAULT_MANAGER_CODE,
             company_name="Acme Corp",
             email_enabled=cfg.EMAIL_ENABLED,
             work_day_start=cfg.WORK_DAY_START,

@@ -68,7 +68,6 @@ export const adminApi = {
   stats: () => api.get('/admin/stats'),
   employees: (search) => api.get('/admin/employees', { params: search ? { search } : {} }),
   managers: () => api.get('/admin/managers'),
-  addManager: (data) => api.post('/admin/managers', data),
   createDirectoryUser: (data) => api.post('/admin/directory', data),
   reassign: (id, managerId) => api.put(`/admin/employee/${id}/reassign`, { manager_id: managerId }),
   deactivate: (id) => api.delete(`/admin/employee/${id}`),

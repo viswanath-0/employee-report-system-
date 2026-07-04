@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, Clock, ShieldCheck, Bell, ImageOff } from 'lucide-react'
+import { Building2, Clock, Bell, ImageOff } from 'lucide-react'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,6 @@ const EMPTY = {
   deadline_time: '',
   work_day_start: '',
   work_day_end: '',
-  manager_code: '',
   email_enabled: false,
 }
 
@@ -46,7 +45,6 @@ export default function AdminSettings() {
         deadline_time: settings.deadline_time,
         work_day_start: settings.work_day_start,
         work_day_end: settings.work_day_end,
-        manager_code: settings.manager_code,
         email_enabled: settings.email_enabled,
       })
       setSettings({ ...EMPTY, ...data })
@@ -144,28 +142,6 @@ export default function AdminSettings() {
                 <Label>Work day end</Label>
                 <Input type="time" value={settings.work_day_end} onChange={(e) => set({ work_day_end: e.target.value })} />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Security */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-brand-500" /> Security
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label>Manager registration code</Label>
-              <Input
-                value={settings.manager_code}
-                onChange={(e) => set({ manager_code: e.target.value })}
-                placeholder="e.g. MGR-2026"
-              />
-              <p className="mt-1.5 text-xs text-slate-400">
-                Required when a new manager registers an account.
-              </p>
             </div>
           </CardContent>
         </Card>

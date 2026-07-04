@@ -103,8 +103,9 @@ Creates managers, employees and ~a month of varied reports/leaves/escalations.
 | Manager | mona@company.com | Manager@123 |
 | Employee | eddie@company.com | Employee@123 |
 
-**Manager registration code** (for signing up new managers): `MANAGER-2024`
-(change it in Admin → Settings, or via `DEFAULT_MANAGER_CODE`).
+**Provisioning:** employees & managers are created by an admin (**All Employees → Add
+Employee/Manager**), which generates their Company ID + a temporary password and emails the
+credentials. New hires log in with their **Company ID** and set a password on first sign-in.
 
 ---
 

@@ -160,7 +160,6 @@ class Setting(Base):
 
     id             = Column(Integer, primary_key=True, autoincrement=True)
     deadline_time  = Column(String(5), default="20:00")   # HH:MM
-    manager_code   = Column(String(80), default="MANAGER-2024")
     company_name   = Column(String(120), default="Acme Corp")
     logo_path      = Column(String(500), nullable=True)
     email_enabled  = Column(Boolean, default=True)

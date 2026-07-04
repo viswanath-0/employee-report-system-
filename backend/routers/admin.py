@@ -229,24 +229,6 @@ def all_managers(db: Session = Depends(get_db), _: models.User = Depends(get_cur
     return out
 
 
-class AddManagerIn(BaseModel):
-    name: str = Field(min_length=2)
-    email: EmailStr
-    password: str = Field(min_length=8)
-    department: str | None = None
-
-
-@router.post("/managers", response_model=schemas.UserOut, status_code=201)
-def add_manager(payload: AddManagerIn, db: Session = Depends(get_db),
-                _: models.User = Depends(get_current_admin)):
-    if crud.get_user_by_email(db, payload.email.lower().strip()):
-        raise HTTPException(400, "Email already in use")
-    return crud.create_user(
-        db, name=payload.name, email=payload.email, password=payload.password,
-        department=payload.department, role="manager",
-    )
-
-
 # ==================== Reports (filterable) ==================== #
 def _filtered_reports(db, employee_id, manager_id, department, status, date_from, date_to):
     q = db.query(models.Report).join(models.User, models.Report.employee_id == models.User.id)
