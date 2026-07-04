@@ -58,7 +58,6 @@ export default function Login() {
                 onChange={(e) => setForm({ ...form, login_id: e.target.value })}
               />
             </div>
-            <p className="mt-1 text-xs text-slate-400">Admins can also sign in with their email.</p>
           </div>
 
           <div>
@@ -85,25 +84,16 @@ export default function Login() {
           </div>
 
           <Button type="submit" loading={loading} className="w-full" size="lg">
-            Login as Employee
-          </Button>
-          <Button type="button" variant="secondary" loading={loading} onClick={submit} className="w-full" size="lg">
-            Login as Manager or Admin
+            Sign in
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          Been added by your admin but haven&apos;t logged in yet?{' '}
+          Don&apos;t have your credentials yet?{' '}
           <Link to="/create-account" className="font-medium text-brand-600 hover:underline">
             Create Account
           </Link>
         </p>
-
-        <div className="mt-6 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-500">
-          <p className="font-medium text-slate-600">Signing in</p>
-          <p className="mt-1">Admin — <b>admin@company.com</b> / <b>Admin@123</b></p>
-          <p>Employees &amp; managers — use the <b>Company ID</b> + temporary password from your welcome email.</p>
-        </div>
       </div>
     </AuthShell>
   )
