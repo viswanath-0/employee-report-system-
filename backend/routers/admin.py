@@ -90,6 +90,14 @@ def create_directory_user(
     )
 
 
+# ==================== Email diagnostic ==================== #
+@router.get("/email-test", response_model=dict)
+def email_test(to: str, _: models.User = Depends(get_current_admin)):
+    """Attempt a real SMTP send and return the actual outcome/error (for debugging)."""
+    from utils.email import test_send
+    return test_send(to)
+
+
 # ==================== Dashboard stats ==================== #
 @router.get("/stats", response_model=dict)
 def stats(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):

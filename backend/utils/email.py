@@ -30,6 +30,35 @@ def is_configured() -> bool:
     return _configured()
 
 
+def test_send(to: str) -> dict:
+    """Diagnostic: a SYNCHRONOUS send that RETURNS the real outcome (unlike send_email,
+    which swallows errors so it never breaks a request). Used by /admin/email-test."""
+    if not _configured():
+        return {"ok": False, "configured": False,
+                "detail": "GMAIL_APP_PASSWORD is not set on the server."}
+    try:
+        from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+        conf = ConnectionConfig(
+            MAIL_USERNAME=settings.GMAIL_ADDRESS,
+            MAIL_PASSWORD=settings.GMAIL_APP_PASSWORD.replace(" ", ""),
+            MAIL_FROM=settings.GMAIL_ADDRESS,
+            MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
+            MAIL_PORT=587, MAIL_SERVER="smtp.gmail.com",
+            MAIL_STARTTLS=True, MAIL_SSL_TLS=False,
+            USE_CREDENTIALS=True, VALIDATE_CERTS=True,
+        )
+        msg = MessageSchema(
+            subject="Employee Report System — email diagnostic",
+            recipients=[to],
+            body=_wrap("Email diagnostic", "If you can read this, the server can send email."),
+            subtype=MessageType.html,
+        )
+        asyncio.run(FastMail(conf).send_message(msg))
+        return {"ok": True, "configured": True, "detail": f"Sent to {to}."}
+    except Exception as e:
+        return {"ok": False, "configured": True, "detail": f"{type(e).__name__}: {e}"}
+
+
 def send_email(to: str, subject: str, html_body: str) -> None:
     """Send a single HTML email. Never raises."""
     if not to:
