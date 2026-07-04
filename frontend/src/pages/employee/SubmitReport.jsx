@@ -9,6 +9,7 @@ import { FileUpload } from '@/components/FileUpload'
 import { ConfirmDialog } from '@/components/modals/ConfirmDialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -29,6 +30,7 @@ export default function SubmitReport() {
   const navigate = useNavigate()
   const today = todayISO()
 
+  const [selectedDate, setSelectedDate] = useState(today)
   const [cfg, setCfg] = useState({ work_day_start: '09:00', work_day_end: '21:00', deadline_time: '20:00' })
   const [loading, setLoading] = useState(true)
   const [tasks, setTasks] = useState([])
@@ -43,42 +45,62 @@ export default function SubmitReport() {
   const endMin = hhmmToMinutes(cfg.work_day_end)
   const countdown = useCountdown(cfg.deadline_time)
 
+  // Date-relative flags. ISO 'YYYY-MM-DD' strings compare chronologically.
+  const isToday = selectedDate === today
+  const isPast = selectedDate < today
+  const isFuture = selectedDate > today
+  // Mirrors backend is_submission_late: past date = late; today = late only after the deadline.
+  const willBeLate = isPast || (isToday && countdown.passed)
+
+  // Load work-day config once.
+  useEffect(() => {
+    configApi.public().then((c) => { if (c?.data) setCfg(c.data) }).catch(() => {})
+  }, [])
+
+  // Load (or clear) the report for the selected date — reruns when the date changes.
   useEffect(() => {
     let alive = true
-    Promise.all([configApi.public(), reportsApi.byDate(today).catch(() => null)])
-      .then(([c, r]) => {
+    // Reset the form for the newly selected date before loading.
+    setTasks([])
+    setDraft(null)
+    setIsLeave(false)
+    setLeave({ leave_type: 'Casual', reason: '', files: [] })
+    setApproved(false)
+
+    reportsApi
+      .byDate(selectedDate)
+      .then((r) => {
         if (!alive) return
-        if (c?.data) setCfg(c.data)
         const report = r?.data
-        if (report) {
-          if (report.status === 'approved') setApproved(true)
-          if (report.status === 'leave' && report.leave) {
-            setIsLeave(true)
-            setLeave({
-              leave_type: report.leave.leave_type,
-              reason: report.leave.reason,
-              files: report.leave.file_path
-                ? [{ file_name: report.leave.file_name, file_path: report.leave.file_path, file_size: 0 }]
-                : [],
-            })
-          } else {
-            setTasks(
-              (report.tasks || []).map((t) => ({
-                id: uid(),
-                title: t.title,
-                description: t.description,
-                color: t.color,
-                start_time: t.start_time,
-                end_time: t.end_time,
-                files: t.files || [],
-              })),
-            )
-          }
+        if (!report) return
+        if (report.status === 'approved') setApproved(true)
+        if (report.status === 'leave' && report.leave) {
+          setIsLeave(true)
+          setLeave({
+            leave_type: report.leave.leave_type,
+            reason: report.leave.reason,
+            files: report.leave.file_path
+              ? [{ file_name: report.leave.file_name, file_path: report.leave.file_path, file_size: 0 }]
+              : [],
+          })
+        } else {
+          setTasks(
+            (report.tasks || []).map((t) => ({
+              id: uid(),
+              title: t.title,
+              description: t.description,
+              color: t.color,
+              start_time: t.start_time,
+              end_time: t.end_time,
+              files: t.files || [],
+            })),
+          )
         }
       })
-      .finally(() => alive && setLoading(false))
+      .catch(() => {}) // 404 = no report yet for that date — a fresh form is correct
+      .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [today])
+  }, [selectedDate])
 
   // ---- timeline interactions ----
   const handleCreate = ({ startMin: s, endMin: e }) => {
@@ -135,7 +157,7 @@ export default function SubmitReport() {
     }
 
     const payload = {
-      date: today,
+      date: selectedDate,
       is_leave: isLeave,
       tasks: isLeave
         ? []
@@ -162,7 +184,11 @@ export default function SubmitReport() {
     setSubmitting(true)
     try {
       await reportsApi.submit(payload)
-      notify.success('Daily report submitted!')
+      notify.success(
+        isLeave
+          ? `Leave application submitted for ${prettyDate(selectedDate)}`
+          : `Report submitted for ${prettyDate(selectedDate)}${willBeLate ? ' (marked late)' : ''}`,
+      )
       navigate('/employee/reports')
     } catch (err) {
       notify.error(apiError(err, 'Failed to submit report'))
@@ -188,33 +214,69 @@ export default function SubmitReport() {
         <div>
           <div className="flex items-center gap-2 text-slate-900">
             <CalendarDays className="h-5 w-5 text-brand-500" />
-            <h2 className="text-lg font-semibold">Submit Daily Report</h2>
+            <h2 className="text-lg font-semibold">Submit Report</h2>
           </div>
-          <p className="mt-0.5 text-sm text-slate-500">{prettyDate(today)}</p>
+          {/* Date picker — pick any day (past or future) */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value || today)}
+              className="w-44"
+            />
+            <span className="text-sm text-slate-500">{prettyDate(selectedDate)}</span>
+            {!isToday && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate(today)}
+                className="text-xs font-medium text-brand-600 hover:underline"
+              >
+                Jump to today
+              </button>
+            )}
+          </div>
         </div>
-        <div
-          className={cn(
-            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium',
-            countdown.passed ? 'bg-rose-50 text-rose-600' : 'bg-brand-50 text-brand-700',
-          )}
-        >
-          <Clock className="h-4 w-4" />
-          Deadline: {hhmmToLabel(cfg.deadline_time)} —{' '}
-          {countdown.passed ? `passed ${countdown.label} ago` : `${countdown.label} remaining`}
-        </div>
+
+        {/* Date-aware deadline / status chip */}
+        {isFuture ? (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+            <CalendarDays className="h-4 w-4" /> Future date — submit ahead (great for leave)
+          </div>
+        ) : willBeLate ? (
+          <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
+            <Clock className="h-4 w-4" />
+            {isToday ? `Deadline passed ${countdown.label} ago` : 'Past date — will be marked late'}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">
+            <Clock className="h-4 w-4" />
+            Deadline: {hhmmToLabel(cfg.deadline_time)} — {countdown.label} remaining
+          </div>
+        )}
       </div>
 
       {approved && (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
-          Today&apos;s report has already been approved. Re-submitting is disabled.
+          This date&apos;s report has already been approved. Re-submitting is disabled.
         </div>
       )}
 
-      {countdown.passed && !approved && (
+      {willBeLate && !approved && (
         <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <AlertCircle className="h-4 w-4" />
-          Deadline passed. You can still submit, but it will be marked <b>late</b>.
+          {isToday ? (
+            <span>Deadline passed. You can still submit, but it will be marked <b>late</b>.</span>
+          ) : (
+            <span>This date is in the past, so your report will be marked <b>late</b>.</span>
+          )}
+        </div>
+      )}
+
+      {isFuture && !approved && (
+        <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-700">
+          <CalendarDays className="h-4 w-4" />
+          You&apos;re preparing a report for a future date — handy for applying for leave in advance.
         </div>
       )}
 
@@ -244,8 +306,10 @@ export default function SubmitReport() {
           {/* Leave toggle */}
           <div className="mt-5 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-slate-800">Apply for Leave Today</p>
-              <p className="text-xs text-slate-500">Marks the whole day as leave and clears any tasks.</p>
+              <p className="text-sm font-medium text-slate-800">
+                Apply for Leave{isFuture ? ' (in advance)' : ''}
+              </p>
+              <p className="text-xs text-slate-500">Marks the selected day as leave and clears any tasks.</p>
             </div>
             <Switch checked={isLeave} onCheckedChange={onToggleLeave} disabled={approved} />
           </div>
@@ -338,7 +402,8 @@ export default function SubmitReport() {
             {isLeave ? 'Leave application ready' : `${tasks.length} task${tasks.length === 1 ? '' : 's'} added`}
           </p>
           <Button size="lg" loading={submitting} onClick={submit} disabled={approved}>
-            <Send className="h-4 w-4" /> Submit Daily Report
+            <Send className="h-4 w-4" />
+            {isLeave ? 'Submit Leave Application' : 'Submit Report'}
           </Button>
         </div>
       </div>
@@ -348,7 +413,7 @@ export default function SubmitReport() {
         onClose={() => setConfirmLeave(false)}
         onConfirm={confirmSwitchToLeave}
         title="Switch to leave?"
-        description="Applying for leave will remove all tasks you've added for today. Continue?"
+        description="Applying for leave will remove all tasks you've added for this day. Continue?"
         confirmText="Yes, apply for leave"
         variant="warning"
       />
