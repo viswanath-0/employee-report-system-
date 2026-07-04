@@ -192,6 +192,8 @@ def unapprove_report(report_id: int, payload: schemas.UnapproveIn,
     else:
         report.correction_message = None
         report.locked = True   # final "Not OK" — only an admin can re-open
+        if report.leave:       # keep the Leave Requests view consistent
+            report.leave.status = "rejected"
         crud.create_notification(
             db, user_id=report.employee_id,
             title="Report marked unapproved",

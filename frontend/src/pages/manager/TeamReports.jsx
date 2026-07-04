@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, Users, FileText } from 'lucide-react'
+import { ChevronDown, ChevronRight, Users, FileText, ClipboardCheck } from 'lucide-react'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ReportDetail } from '@/components/ReportDetail'
+import { ReportReviewDrawer } from '@/components/modals/ReportReviewDrawer'
 import { MiniTimeline } from '@/components/timeline/MiniTimeline'
 import { managerApi } from '@/api/endpoints'
 import { ddmmyyyy, hhmmToLabel } from '@/utils/date'
@@ -21,6 +23,7 @@ export default function TeamReports() {
   const [reports, setReports] = useState([])
   const [reportsLoading, setReportsLoading] = useState(false)
   const [expanded, setExpanded] = useState(null)
+  const [reviewId, setReviewId] = useState(null)
 
   useEffect(() => {
     setTeamLoading(true)
@@ -34,16 +37,22 @@ export default function TeamReports() {
       .finally(() => setTeamLoading(false))
   }, [])
 
-  useEffect(() => {
-    if (!selected) return
+  // Load a team member's report history. resetExpanded collapses open rows on
+  // employee switch; on a post-action reload we keep the current row open.
+  const loadReports = (emp, resetExpanded = false) => {
+    if (!emp) return
     setReportsLoading(true)
-    setExpanded(null)
+    if (resetExpanded) setExpanded(null)
     managerApi
-      .employeeReports(selected.id)
+      .employeeReports(emp.id)
       .then((r) => setReports(r.data))
       .catch((err) => notify.error(apiError(err)))
       .finally(() => setReportsLoading(false))
-  }, [selected])
+  }
+
+  useEffect(() => {
+    loadReports(selected, true)
+  }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>
@@ -134,6 +143,20 @@ export default function TeamReports() {
                       </button>
                       {open && (
                         <div className="rounded-lg bg-slate-50/60 px-4 py-4">
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <span className="text-xs text-slate-500">
+                              {r.leave ? 'Leave request' : 'Daily report'}
+                            </span>
+                            {r.locked ? (
+                              <span className="text-xs font-medium text-slate-400">
+                                Locked — ask an admin to re-open
+                              </span>
+                            ) : (
+                              <Button size="sm" variant="secondary" onClick={() => setReviewId(r.id)}>
+                                <ClipboardCheck className="h-3.5 w-3.5" /> Review
+                              </Button>
+                            )}
+                          </div>
                           {!r.leave && r.tasks?.length > 0 && (
                             <MiniTimeline tasks={r.tasks} className="mb-3" />
                           )}
@@ -148,6 +171,13 @@ export default function TeamReports() {
           </CardContent>
         </Card>
       </div>
+
+      <ReportReviewDrawer
+        reportId={reviewId}
+        open={!!reviewId}
+        onClose={() => setReviewId(null)}
+        onActioned={() => loadReports(selected)}
+      />
     </div>
   )
 }
