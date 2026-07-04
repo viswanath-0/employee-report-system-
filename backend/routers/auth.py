@@ -25,7 +25,7 @@ import models
 import schemas
 from utils.jwt import verify_password, create_access_token, get_current_user, hash_password
 from utils.company_id import generate_temp_password
-from utils.email import email_credentials
+from utils.email import email_credentials, email_access_request
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -94,8 +94,8 @@ def activate(
         return schemas.ActivateOut(
             ok=False,
             message=(
-                "Account not found. Email your full name, department and joining date to "
-                f"{admin_contact} so an admin can add or correct your record, then try again."
+                "Account not found. If your admin hasn't added you yet, use "
+                "'Request access' below to send them your details."
             ),
             admin_contact=admin_contact,
         )
@@ -119,6 +119,34 @@ def activate(
     return schemas.ActivateOut(
         ok=True,
         message="Your login credentials have been sent to the email on file. Check your inbox (and spam).",
+    )
+
+
+@router.post("/request-access", response_model=schemas.ActivateOut)
+def request_access(
+    payload: schemas.AccessRequestIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """A candidate not yet in the directory sends their details to the admin, who then
+    creates the account (assigning a manager) via the admin panel."""
+    background.add_task(
+        email_access_request, settings.ADMIN_CONTACT_EMAIL, payload.full_name.strip(),
+        payload.personal_email.strip().lower(), payload.department, payload.role,
+        payload.joining_date, payload.message or "",
+    )
+    admin = crud.get_user_by_email(db, settings.ADMIN_EMAIL.lower().strip())
+    if admin:
+        crud.create_notification(
+            db, user_id=admin.id,
+            title=f"Access request from {payload.full_name.strip()}",
+            message=f"{payload.role.title()} · {payload.department} · joining {payload.joining_date}",
+            type="info", link="/admin/employees",
+        )
+    return schemas.ActivateOut(
+        ok=True,
+        message="Your request has been sent to the administrator. You'll receive your login "
+                "details by email once your account is created.",
     )
 
 

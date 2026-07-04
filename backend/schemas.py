@@ -90,6 +90,16 @@ class ChangePasswordIn(BaseModel):
     new_password: str = Field(min_length=1, max_length=128)
 
 
+class AccessRequestIn(BaseModel):
+    """A candidate who isn't in the directory yet asks the admin to add them."""
+    full_name: str = Field(min_length=2, max_length=120)
+    personal_email: EmailStr
+    department: str
+    role: Literal["employee", "manager"] = "employee"
+    joining_date: str
+    message: Optional[str] = None
+
+
 # ==================== Files ==================== #
 class UploadResponse(BaseModel):
     file_name: str

@@ -4,6 +4,7 @@ import api from './axios'
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
   activate: (data) => api.post('/auth/activate', data),
+  requestAccess: (data) => api.post('/auth/request-access', data),
   changePassword: (data) => api.post('/auth/change-password', data),
   me: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/me', data),

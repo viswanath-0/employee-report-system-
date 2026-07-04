@@ -6,6 +6,7 @@ import { roleHome } from '@/utils/format'
 
 import Login from '@/pages/auth/Login'
 import CreateAccount from '@/pages/auth/CreateAccount'
+import RequestAccess from '@/pages/auth/RequestAccess'
 import SetPassword from '@/pages/auth/SetPassword'
 
 import EmployeeDashboard from '@/pages/employee/Dashboard'
@@ -40,6 +41,7 @@ export default function App() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/create-account" element={<PublicRoute><CreateAccount /></PublicRoute>} />
+      <Route path="/request-access" element={<PublicRoute><RequestAccess /></PublicRoute>} />
       <Route path="/set-password" element={<RequireAuth><SetPassword /></RequireAuth>} />
 
       {/* Employee */}

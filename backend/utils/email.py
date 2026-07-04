@@ -153,6 +153,26 @@ def email_credentials(to: str, full_name: str, company_id: str, temp_password: s
     )
 
 
+def email_access_request(to_admin: str, full_name: str, personal_email: str,
+                         department: str, role: str, joining_date: str, message: str = "") -> None:
+    e = html.escape
+    body = (
+        f"A candidate has requested an account. Details on file:<br/><br/>"
+        f"<b>Full name:</b> {e(full_name)}<br/>"
+        f"<b>Personal email:</b> {e(personal_email)}<br/>"
+        f"<b>Department:</b> {e(department)}<br/>"
+        f"<b>Role:</b> {e(role.title())}<br/>"
+        f"<b>Joining date:</b> {e(joining_date)}<br/>"
+    )
+    if message:
+        body += f"<b>Message:</b> {e(message)}<br/>"
+    body += (
+        "<br/>If approved, create their account from <b>All Employees &rarr; Add "
+        "Employee/Manager</b> — and assign their manager there."
+    )
+    send_email(to_admin, f"Access request from {full_name}", _wrap("New access request", body))
+
+
 def email_escalation(to: str, manager_name: str, employee_name: str,
                      report_date: str, message: str, link: str) -> None:
     e = html.escape

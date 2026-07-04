@@ -63,14 +63,12 @@ export default function CreateAccount() {
             <div>
               <p className="font-semibold">Account not found</p>
               <p className="mt-0.5">{result.message}</p>
-              {result.admin_contact && (
-                <a
-                  href={`mailto:${result.admin_contact}?subject=Please add me to the directory`}
-                  className="mt-2 inline-block font-medium text-amber-900 underline"
-                >
-                  Email {result.admin_contact}
-                </a>
-              )}
+              <Link
+                to="/request-access"
+                className="mt-2 inline-block font-medium text-amber-900 underline"
+              >
+                Request access →
+              </Link>
             </div>
           </div>
         )}
@@ -108,6 +106,12 @@ export default function CreateAccount() {
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-500">
+          Don&apos;t have a Company ID yet?{' '}
+          <Link to="/request-access" className="font-medium text-brand-600 hover:underline">
+            Request access
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-sm text-slate-500">
           Already have your credentials?{' '}
           <Link to="/login" className="font-medium text-brand-600 hover:underline">
             Sign in
