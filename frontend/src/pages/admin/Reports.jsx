@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, FileText } from 'lucide-react'
+import { Download, FileText, RotateCcw } from 'lucide-react'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Table, THead, TH, TBody, TR, TD } from '@/components/ui/table'
@@ -44,6 +44,16 @@ export default function AllReports() {
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyFilters = () => load(filters)
+
+  const reopen = async (id) => {
+    try {
+      await adminApi.reopenReport(id)
+      notify.success('Report re-opened — the manager can review it again')
+      load()
+    } catch (err) {
+      notify.error(apiError(err))
+    }
+  }
 
   const exportCsv = async () => {
     setExporting(true)
@@ -131,6 +141,7 @@ export default function AllReports() {
                 <TH>Date</TH>
                 <TH>Status</TH>
                 <TH>Tasks</TH>
+                <TH className="text-right">Actions</TH>
               </TR>
             </THead>
             <TBody>
@@ -146,6 +157,13 @@ export default function AllReports() {
                   <TD className="text-slate-600">{ddmmyyyy(r.date)}</TD>
                   <TD><StatusBadge status={r.status} late={r.is_late} /></TD>
                   <TD>{r.status === 'leave' ? '—' : (r.tasks_count ?? 0)}</TD>
+                  <TD className="text-right">
+                    {r.locked && (
+                      <Button size="sm" variant="secondary" onClick={() => reopen(r.id)}>
+                        <RotateCcw className="h-3.5 w-3.5" /> Re-open
+                      </Button>
+                    )}
+                  </TD>
                 </TR>
               ))}
             </TBody>

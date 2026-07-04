@@ -11,6 +11,7 @@ Employee-facing endpoints:
   GET  /escalations/my          — my escalations
 """
 
+import json
 import re
 from datetime import datetime
 
@@ -173,10 +174,20 @@ def resubmit_report(
         raise HTTPException(404, "Report not found")
     if report.status not in ("unapproved", "escalated"):
         raise HTTPException(400, "Only reports awaiting clarification can be resubmitted")
+    if report.locked:
+        raise HTTPException(400, "This report has been finalised and can no longer be changed.")
 
     _clear_report_content(db, report)
     report.correction_message = None
     report.is_late = is_submission_late(report.date, report.deadline, datetime.now())
+
+    explanation = (payload.explanation or payload.note or "").strip()
+    report.clarification_response = explanation or None
+    report.proof_files = json.dumps([
+        {"file_name": f.file_name, "file_path": f.file_path, "file_size": f.file_size or 0}
+        for f in payload.proof_files
+    ]) if payload.proof_files else None
+
     _apply_content(db, report, is_leave=payload.is_leave,
                    tasks=payload.tasks, leave=payload.leave)
     db.commit()
@@ -186,7 +197,7 @@ def resubmit_report(
         crud.create_notification(
             db, user_id=user.manager_id,
             title=f"{user.name} resubmitted a report",
-            message=(payload.note or f"Report for {_ddmmyyyy(report.date)} was updated"),
+            message=(explanation or f"Report for {_ddmmyyyy(report.date)} was updated"),
             type="info", link="/manager/pending",
         )
     return report

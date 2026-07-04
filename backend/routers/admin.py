@@ -98,6 +98,28 @@ def email_test(to: str, _: models.User = Depends(get_current_admin)):
     return test_send(to)
 
 
+@router.put("/report/{report_id}/reopen", response_model=dict)
+def reopen_report(report_id: int, db: Session = Depends(get_db),
+                  _: models.User = Depends(get_current_admin)):
+    """Re-open a locked (finally-unapproved) report so its manager can review it again."""
+    report = crud.get_report(db, report_id)
+    if not report:
+        raise HTTPException(404, "Report not found")
+    report.locked = False
+    report.status = "pending"
+    report.correction_message = None
+    emp = report.employee
+    if emp and emp.manager_id:
+        crud.create_notification(
+            db, user_id=emp.manager_id,
+            title="A report was re-opened by admin",
+            message=f"{emp.name}'s report for {report.date} is open for review again.",
+            type="info", link="/manager/pending", commit=False,
+        )
+    db.commit()
+    return {"ok": True, "status": "pending"}
+
+
 # ==================== Dashboard stats ==================== #
 @router.get("/stats", response_model=dict)
 def stats(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):

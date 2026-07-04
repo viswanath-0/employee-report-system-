@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  X, CheckCircle2, MessageSquare, XCircle, AlertCircle,
+  X, CheckCircle2, MessageSquare, XCircle, AlertCircle, Lock,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -189,8 +189,16 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
           )}
         </div>
 
+        {/* Locked — finally unapproved; only an admin can re-open */}
+        {report && !loading && report.locked && (
+          <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-6 py-4 text-sm text-slate-600">
+            <Lock className="h-4 w-4 text-slate-400" />
+            This report was finalised as unapproved and is locked. Ask an admin to re-open it.
+          </div>
+        )}
+
         {/* Action bar */}
-        {report && !loading && (
+        {report && !loading && !report.locked && (
           <div className="border-t border-slate-100 px-6 py-4">
             {mode === 'clarify' ? (
               <div className="space-y-3">
@@ -217,8 +225,8 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
                 <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>
-                    Are you sure? This will permanently mark it unapproved with no correction
-                    message.
+                    Are you sure? This finalises the report as <b>unapproved</b> and <b>locks</b> it —
+                    only an admin can re-open it afterwards.
                   </p>
                 </div>
                 <div className="flex items-center justify-end gap-2">

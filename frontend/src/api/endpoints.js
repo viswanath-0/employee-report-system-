@@ -70,6 +70,7 @@ export const adminApi = {
   employees: (search) => api.get('/admin/employees', { params: search ? { search } : {} }),
   managers: () => api.get('/admin/managers'),
   createDirectoryUser: (data) => api.post('/admin/directory', data),
+  reopenReport: (id) => api.put(`/admin/report/${id}/reopen`),
   reassign: (id, managerId) => api.put(`/admin/employee/${id}/reassign`, { manager_id: managerId }),
   deactivate: (id) => api.delete(`/admin/employee/${id}`),
   reports: (params) => api.get('/admin/reports', { params }),

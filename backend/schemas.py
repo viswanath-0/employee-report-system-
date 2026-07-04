@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List, Literal
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, computed_field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, computed_field, field_validator
 
 
 # ==================== Users / Auth ==================== #
@@ -183,7 +183,9 @@ class ReportResubmitIn(BaseModel):
     is_leave: bool = False
     tasks: List[TaskIn] = []
     leave: Optional[LeaveIn] = None
-    note: Optional[str] = None    # employee's explanation on resubmission
+    note: Optional[str] = None            # (legacy) employee's explanation
+    explanation: Optional[str] = None     # employee's explanation on resubmission
+    proof_files: List[TaskFileIn] = []    # supporting proof uploads
 
 
 class ReportOut(BaseModel):
@@ -194,10 +196,24 @@ class ReportOut(BaseModel):
     deadline: str
     is_late: bool
     correction_message: Optional[str] = None
+    clarification_response: Optional[str] = None
+    locked: bool = False
+    proof_files: list = []
     created_at: datetime
     tasks: List[TaskOut] = []
     leave: Optional[LeaveOut] = None
     employee: Optional[ReportEmployee] = None
+
+    @field_validator("proof_files", mode="before")
+    @classmethod
+    def _parse_proof(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v) if v.strip() else []
+            except Exception:
+                return []
+        return v or []
 
     @computed_field
     @property

@@ -67,6 +67,9 @@ class Report(Base):
     deadline           = Column(String(5), default="20:00", nullable=False)  # HH:MM
     is_late            = Column(Boolean, default=False, nullable=False)
     correction_message = Column(Text, nullable=True)
+    clarification_response = Column(Text, nullable=True)   # employee's explanation on resubmit
+    proof_files            = Column(Text, nullable=True)   # JSON list of proof attachments
+    locked                 = Column(Boolean, default=False, nullable=False)  # final-unapprove lock
     created_at         = Column(DateTime, default=datetime.now, nullable=False)
     updated_at         = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

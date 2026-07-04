@@ -139,6 +139,8 @@ def approve_report(report_id: int, background: BackgroundTasks,
                    db: Session = Depends(get_db),
                    manager: models.User = Depends(get_current_manager)):
     report = _team_report(db, manager, report_id)
+    if report.locked:
+        raise HTTPException(403, "This report is locked. Ask an admin to re-open it.")
     report.status = "approved"
     report.correction_message = None
     _resolve_escalations(db, report)
@@ -173,6 +175,8 @@ def unapprove_report(report_id: int, payload: schemas.UnapproveIn,
                      db: Session = Depends(get_db),
                      manager: models.User = Depends(get_current_manager)):
     report = _team_report(db, manager, report_id)
+    if report.locked:
+        raise HTTPException(403, "This report is locked. Ask an admin to re-open it.")
     report.status = "unapproved"
     _resolve_escalations(db, report)
 
@@ -187,6 +191,7 @@ def unapprove_report(report_id: int, payload: schemas.UnapproveIn,
         )
     else:
         report.correction_message = None
+        report.locked = True   # final "Not OK" — only an admin can re-open
         crud.create_notification(
             db, user_id=report.employee_id,
             title="Report marked unapproved",

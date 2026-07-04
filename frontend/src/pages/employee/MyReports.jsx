@@ -15,6 +15,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ReportDetail } from '@/components/ReportDetail'
+import { FileUpload } from '@/components/FileUpload'
 import { MiniTimeline } from '@/components/timeline/MiniTimeline'
 import { reportsApi, escalationApi } from '@/api/endpoints'
 import { ddmmyyyy, hhmmToLabel, canEscalate } from '@/utils/date'
@@ -30,6 +31,7 @@ export default function MyReports() {
   const [escalateMsg, setEscalateMsg] = useState('')
   const [resubmitFor, setResubmitFor] = useState(null)
   const [resubmitNote, setResubmitNote] = useState('')
+  const [resubmitProof, setResubmitProof] = useState([])
   const [busy, setBusy] = useState(false)
 
   const load = () => {
@@ -70,6 +72,8 @@ export default function MyReports() {
       const payload = {
         is_leave: !!r.leave,
         note: resubmitNote.trim() || null,
+        explanation: resubmitNote.trim() || null,
+        proof_files: resubmitProof,
         tasks: (r.tasks || []).map((t) => ({
           title: t.title, description: t.description || '',
           start_time: t.start_time, end_time: t.end_time, color: t.color,
@@ -85,6 +89,7 @@ export default function MyReports() {
       notify.success('Report resubmitted for review')
       setResubmitFor(null)
       setResubmitNote('')
+      setResubmitProof([])
       load()
     } catch (err) {
       notify.error(apiError(err))
@@ -263,6 +268,10 @@ export default function MyReports() {
           onChange={(e) => setResubmitNote(e.target.value)}
           placeholder="Describe what you changed or clarified…"
         />
+        <div className="mt-3">
+          <Label>Proof / supporting files (optional)</Label>
+          <FileUpload value={resubmitProof} onChange={setResubmitProof} />
+        </div>
         <p className="mt-2 text-xs text-slate-400">
           Your existing tasks will be resubmitted and the report set back to pending. To change task
           details, edit today&apos;s report from the Submit page.
