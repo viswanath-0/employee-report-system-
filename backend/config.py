@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     # -------------------- App -------------------- #
     APP_NAME: str = "Employee Report System"
     ENV: str = "development"
-    FRONTEND_URL: str = "http://localhost:5173"
+    # Public URL of the deployed frontend — used to build links in emails
+    # (login/credentials, escalation). Override via the FRONTEND_URL env var.
+    FRONTEND_URL: str = "https://employee-report-system.vercel.app"
 
     # -------------------- Security / JWT -------------------- #
     SECRET_KEY: str = "CHANGE_ME_super_secret_key_for_jwt_signing_0123456789"
