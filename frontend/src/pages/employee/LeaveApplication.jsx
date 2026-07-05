@@ -54,7 +54,6 @@ export default function LeaveApplication() {
 
   const apply = async () => {
     if (!form.reason.trim()) return notify.error('Please provide a reason')
-    if (form.files.length === 0) return notify.error('A supporting document is required')
     if ((form.date_to || form.date_from) < form.date_from) {
       return notify.error("The 'To' date must be on or after the 'From' date")
     }
@@ -65,8 +64,8 @@ export default function LeaveApplication() {
         date_to: form.date_to || form.date_from,
         leave_type: form.leave_type,
         reason: form.reason.trim(),
-        file_path: form.files[0].file_path,
-        file_name: form.files[0].file_name,
+        file_path: form.files[0]?.file_path || null,
+        file_name: form.files[0]?.file_name || null,
       })
       const n = data?.count ?? 0
       if (n === 0) {
@@ -198,7 +197,7 @@ export default function LeaveApplication() {
             <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave…" />
           </div>
           <div>
-            <Label>Supporting document (required)</Label>
+            <Label>Supporting document (optional)</Label>
             <FileUpload value={form.files} onChange={(files) => setForm({ ...form, files })} />
           </div>
         </div>

@@ -58,8 +58,6 @@ def _apply_content(db: Session, report: models.Report, *, is_leave: bool,
     if is_leave:
         if not leave or not (leave.reason or "").strip():
             raise HTTPException(400, "A reason is required for leave")
-        if not leave.file_path:
-            raise HTTPException(400, "A supporting document is required for leave")
         report.status = "leave"
         db.add(models.LeaveRequest(
             report_id=report.id,
@@ -209,7 +207,7 @@ class LeaveApplyIn(BaseModel):
     date_to: str | None = None          # inclusive end; defaults to date_from (single day)
     leave_type: str = "Casual"
     reason: str = Field(min_length=1)
-    file_path: str
+    file_path: str | None = None        # supporting document is optional
     file_name: str | None = None
 
 

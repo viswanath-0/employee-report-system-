@@ -151,7 +151,6 @@ export default function SubmitReport() {
   const submit = async () => {
     if (isLeave) {
       if (!leave.reason.trim()) return notify.error('Please provide a reason for your leave')
-      if (leave.files.length === 0) return notify.error('A supporting document is required for leave')
     } else if (tasks.length === 0) {
       return notify.error('Add at least one task, or apply for leave')
     }
@@ -343,7 +342,7 @@ export default function SubmitReport() {
               />
             </div>
             <div>
-              <Label>Supporting document (required)</Label>
+              <Label>Supporting document (optional)</Label>
               <FileUpload value={leave.files} onChange={(files) => setLeave({ ...leave, files })} />
             </div>
           </CardContent>
