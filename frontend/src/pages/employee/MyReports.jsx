@@ -5,7 +5,7 @@ import {
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Table, THead, TH, TBody, TR, TD } from '@/components/ui/table'
-import { StatusBadge } from '@/components/ui/badge'
+import { StatusBadge, LeaveStatusBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -20,6 +20,18 @@ import { MiniTimeline } from '@/components/timeline/MiniTimeline'
 import { reportsApi, escalationApi } from '@/api/endpoints'
 import { ddmmyyyy, hhmmToLabel, canEscalate } from '@/utils/date'
 import { notify, apiError } from '@/utils/toast'
+
+// Collapse a report to one of: pending | approved | unapproved (used by the
+// status filter). A leave is grouped by the leave's own status; an escalated
+// task still counts as pending.
+function effectiveStatus(r) {
+  if (r.leave) {
+    if (r.leave.status === 'approved') return 'approved'
+    if (r.leave.status === 'rejected') return 'unapproved'
+    return 'pending'
+  }
+  return r.status === 'escalated' ? 'pending' : r.status
+}
 
 export default function MyReports() {
   const [reports, setReports] = useState([])
@@ -42,7 +54,7 @@ export default function MyReports() {
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
-      if (filters.status !== 'all' && r.status !== filters.status) return false
+      if (filters.status !== 'all' && effectiveStatus(r) !== filters.status) return false
       if (filters.from && r.date < filters.from) return false
       if (filters.to && r.date > filters.to) return false
       return true
@@ -120,8 +132,6 @@ export default function MyReports() {
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="unapproved">Unapproved</option>
-              <option value="escalated">Escalated</option>
-              <option value="leave">Leave</option>
             </Select>
           </div>
         </div>
@@ -162,7 +172,16 @@ export default function MyReports() {
                       <TD>{open ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}</TD>
                       <TD className="font-medium text-slate-900">{ddmmyyyy(r.date)}</TD>
                       <TD>{r.leave ? '—' : r.tasks_count}</TD>
-                      <TD><StatusBadge status={r.status} late={r.is_late} /></TD>
+                      <TD>
+                        <div className="flex items-center gap-1.5">
+                          {r.leave
+                            ? <LeaveStatusBadge status={r.leave.status} />
+                            : <StatusBadge status={r.status} late={r.is_late} />}
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${r.leave ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {r.leave ? 'Leave' : 'Task'}
+                          </span>
+                        </div>
+                      </TD>
                       <TD className="text-slate-500">{hhmmToLabel(r.deadline)}</TD>
                       <TD className="max-w-[200px] truncate text-slate-500">
                         {r.correction_message || '—'}
