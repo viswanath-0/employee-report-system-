@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Building2, Clock, Bell, ImageOff } from 'lucide-react'
+import { Building2, Clock, Bell } from 'lucide-react'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FileUpload } from '@/components/FileUpload'
 import { adminApi } from '@/api/endpoints'
-import { fileUrl } from '@/api/axios'
 import { notify, apiError } from '@/utils/toast'
 
 const EMPTY = {
@@ -90,32 +88,6 @@ export default function AdminSettings() {
                 value={settings.company_name}
                 onChange={(e) => set({ company_name: e.target.value })}
                 placeholder="Acme Inc."
-              />
-            </div>
-            <div>
-              <Label>Company logo</Label>
-              <div className="mb-3 flex items-center gap-3">
-                {settings.logo_path ? (
-                  <img
-                    src={fileUrl(settings.logo_path)}
-                    alt="Company logo"
-                    className="h-14 w-14 rounded-lg border border-slate-200 object-contain bg-white p-1"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400">
-                    <ImageOff className="h-6 w-6" />
-                  </div>
-                )}
-                <p className="text-xs text-slate-500">
-                  {settings.logo_path ? 'Current logo. Upload a new file to replace it.' : 'No logo uploaded yet.'}
-                </p>
-              </div>
-              <FileUpload
-                value={[]}
-                onChange={(files) => {
-                  const f = files[0]
-                  if (f) set({ logo_path: f.file_path })
-                }}
               />
             </div>
           </CardContent>
