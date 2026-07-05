@@ -13,7 +13,7 @@ Employee-facing endpoints:
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -205,45 +205,77 @@ def resubmit_report(
 
 # -------------------- Leave -------------------- #
 class LeaveApplyIn(BaseModel):
-    date: str
+    date_from: str
+    date_to: str | None = None          # inclusive end; defaults to date_from (single day)
     leave_type: str = "Casual"
     reason: str = Field(min_length=1)
     file_path: str
     file_name: str | None = None
 
 
-@router.post("/leave/apply", response_model=schemas.ReportOut)
+@router.post("/leave/apply", response_model=dict)
 def apply_leave(
     payload: LeaveApplyIn,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_employee),
 ):
+    """Apply for leave over an inclusive date range (from..to).
+
+    Each day becomes its own 'leave' report — consistent with the app's
+    one-report-per-day model — so every day shows on the calendar and in the
+    manager's approval queue. Days that already have an approved report are
+    skipped rather than overwritten.
+    """
     s = crud.get_settings(db)
-    report = crud.get_report_for_date(db, user.id, payload.date)
-    if report and report.status == "approved":
-        raise HTTPException(400, "This day already has an approved report")
+    try:
+        d_from = datetime.strptime(payload.date_from, "%Y-%m-%d").date()
+        d_to = datetime.strptime(payload.date_to or payload.date_from, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Dates must be in YYYY-MM-DD format")
+    if d_to < d_from:
+        raise HTTPException(400, "The 'To' date must be on or after the 'From' date")
+    if (d_to - d_from).days > 30:
+        raise HTTPException(400, "Leave range is too long (max 31 days at a time)")
 
-    if not report:
-        report = models.Report(employee_id=user.id, date=payload.date)
-        db.add(report)
-        db.flush()
-    else:
-        _clear_report_content(db, report)
+    created: list[str] = []
+    skipped: list[str] = []
+    day = d_from
+    while day <= d_to:
+        iso = day.isoformat()
+        report = crud.get_report_for_date(db, user.id, iso)
+        if report and report.status == "approved":
+            skipped.append(iso)                     # already approved — leave it untouched
+            day += timedelta(days=1)
+            continue
+        if not report:
+            report = models.Report(employee_id=user.id, date=iso)
+            db.add(report)
+            db.flush()
+        else:
+            _clear_report_content(db, report)
+        report.deadline = s.deadline_time
+        report.correction_message = None
+        report.is_late = is_submission_late(iso, s.deadline_time, datetime.now())
+        _apply_content(db, report, is_leave=True, tasks=[], leave=schemas.LeaveIn(
+            leave_type=payload.leave_type, reason=payload.reason,
+            file_path=payload.file_path, file_name=payload.file_name,
+        ))
+        created.append(iso)
+        day += timedelta(days=1)
 
-    report.deadline = s.deadline_time
-    report.correction_message = None
-    report.is_late = is_submission_late(payload.date, s.deadline_time, datetime.now())
-
-    leave_obj = schemas.LeaveIn(
-        leave_type=payload.leave_type, reason=payload.reason,
-        file_path=payload.file_path, file_name=payload.file_name,
-    )
-    _apply_content(db, report, is_leave=True, tasks=[], leave=leave_obj)
     db.commit()
-    db.refresh(report)
 
-    _notify_manager(db, user, payload.date, "leave request", link="/manager/pending")
-    return report
+    if created and user.manager_id:
+        span = _ddmmyyyy(created[0]) if len(created) == 1 \
+            else f"{_ddmmyyyy(created[0])} to {_ddmmyyyy(created[-1])}"
+        crud.create_notification(
+            db, user_id=user.manager_id,
+            title=f"New leave request from {user.name}",
+            message=f"{len(created)} day(s): {span} — awaiting your review",
+            type="info", link="/manager/pending",
+        )
+
+    return {"ok": True, "count": len(created), "created": created, "skipped": skipped}
 
 
 # -------------------- Escalations -------------------- #

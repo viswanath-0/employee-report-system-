@@ -28,7 +28,7 @@ export default function LeaveApplication() {
   const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [form, setForm] = useState({ date: todayISO(), leave_type: 'Casual', reason: '', files: [] })
+  const [form, setForm] = useState({ date_from: todayISO(), date_to: todayISO(), leave_type: 'Casual', reason: '', files: [] })
 
   const load = () => {
     setLoading(true)
@@ -44,21 +44,38 @@ export default function LeaveApplication() {
     leaves.map((r) => [r.date, statusToMarker[r.leave.status] || 'leave']),
   )
 
+  // Inclusive number of days in the selected From..To range (0 if invalid).
+  const dayCount = (() => {
+    const a = new Date(`${form.date_from}T00:00:00`)
+    const b = new Date(`${form.date_to || form.date_from}T00:00:00`)
+    const d = Math.round((b - a) / 86400000) + 1
+    return Number.isFinite(d) && d >= 1 ? d : 0
+  })()
+
   const apply = async () => {
     if (!form.reason.trim()) return notify.error('Please provide a reason')
     if (form.files.length === 0) return notify.error('A supporting document is required')
+    if ((form.date_to || form.date_from) < form.date_from) {
+      return notify.error("The 'To' date must be on or after the 'From' date")
+    }
     setBusy(true)
     try {
-      await leaveApi.apply({
-        date: form.date,
+      const { data } = await leaveApi.apply({
+        date_from: form.date_from,
+        date_to: form.date_to || form.date_from,
         leave_type: form.leave_type,
         reason: form.reason.trim(),
         file_path: form.files[0].file_path,
         file_name: form.files[0].file_name,
       })
-      notify.success('Leave application submitted')
+      const n = data?.count ?? 0
+      if (n === 0) {
+        notify.error('Those days already have approved reports — nothing to apply.')
+        return
+      }
+      notify.success(n === 1 ? 'Leave application submitted' : `Leave applied for ${n} days`)
       setOpen(false)
-      setForm({ date: todayISO(), leave_type: 'Casual', reason: '', files: [] })
+      setForm({ date_from: todayISO(), date_to: todayISO(), leave_type: 'Casual', reason: '', files: [] })
       load()
     } catch (err) {
       notify.error(apiError(err))
@@ -145,16 +162,37 @@ export default function LeaveApplication() {
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Date</Label>
-              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              <Label>From</Label>
+              <Input
+                type="date"
+                value={form.date_from}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setForm((f) => ({ ...f, date_from: v, date_to: f.date_to && f.date_to >= v ? f.date_to : v }))
+                }}
+              />
             </div>
             <div>
-              <Label>Leave type</Label>
-              <Select value={form.leave_type} onChange={(e) => setForm({ ...form, leave_type: e.target.value })}>
-                {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </Select>
+              <Label>To</Label>
+              <Input
+                type="date"
+                min={form.date_from}
+                value={form.date_to}
+                onChange={(e) => setForm({ ...form, date_to: e.target.value })}
+              />
             </div>
           </div>
+          <div>
+            <Label>Leave type</Label>
+            <Select value={form.leave_type} onChange={(e) => setForm({ ...form, leave_type: e.target.value })}>
+              {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </div>
+          {dayCount > 0 && (
+            <p className="-mt-1 text-xs text-slate-500">
+              Applying for <span className="font-medium text-slate-700">{dayCount}</span> day{dayCount === 1 ? '' : 's'}{dayCount > 1 ? ' — each day is sent to your manager for approval.' : ''}
+            </p>
+          )}
           <div>
             <Label>Reason</Label>
             <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave…" />
