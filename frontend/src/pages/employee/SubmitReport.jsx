@@ -52,6 +52,11 @@ export default function SubmitReport() {
   // Mirrors backend is_submission_late: past date = late; today = late only after the deadline.
   const willBeLate = isPast || (isToday && countdown.passed)
 
+  // You can only log work up to the current time. For TODAY, cap the timeline at
+  // "now"; past/future dates keep the full work-day window.
+  const nowMin = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() })()
+  const maxMin = isToday ? Math.max(startMin, Math.min(endMin, nowMin)) : endMin
+
   // Load work-day config once.
   useEffect(() => {
     configApi.public().then((c) => { if (c?.data) setCfg(c.data) }).catch(() => {})
@@ -285,6 +290,7 @@ export default function SubmitReport() {
           <Timeline
             startMin={startMin}
             endMin={endMin}
+            maxMin={maxMin}
             tasks={isLeave ? [] : tasks}
             leaveMode={isLeave}
             onCreate={handleCreate}

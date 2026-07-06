@@ -24,6 +24,7 @@ export function Timeline({
   onCreate,
   onEditTask,
   leaveMode = false,
+  maxMin = endMin,          // latest selectable minute (e.g. "now" for today)
 }) {
   const total = endMin - startMin
   const trackRef = useRef(null)
@@ -45,7 +46,7 @@ export function Timeline({
     let ratio = (clientX - rect.left) / rect.width
     ratio = Math.max(0, Math.min(1, ratio))
     const m = Math.round((startMin + ratio * total) / SNAP) * SNAP
-    return Math.max(startMin, Math.min(endMin, m))
+    return Math.max(startMin, Math.min(maxMin, m))   // never past the allowed limit
   }
 
   const onPointerDown = (e) => {
@@ -105,6 +106,24 @@ export function Timeline({
               />
             )
           })}
+
+          {/* not-yet-reached region — e.g. the time after "now" on today's report */}
+          {!leaveMode && maxMin < endMin && (
+            <>
+              <div
+                className="absolute bottom-0 top-0 bg-slate-200/60"
+                style={{
+                  left: `${((maxMin - startMin) / total) * 100}%`,
+                  width: `${((endMin - maxMin) / total) * 100}%`,
+                }}
+              />
+              <div
+                className="absolute bottom-0 top-0 w-0.5 bg-rose-400"
+                style={{ left: `${((maxMin - startMin) / total) * 100}%` }}
+                title={`Now · ${minutesToLabel(maxMin)}`}
+              />
+            </>
+          )}
 
           {/* task blocks */}
           {!leaveMode &&
@@ -184,7 +203,7 @@ export function Timeline({
       </div>
 
       {isMobile && !leaveMode && (
-        <MobileCreator startMin={startMin} endMin={endMin} overlaps={overlaps} onCreate={onCreate} />
+        <MobileCreator startMin={startMin} endMin={endMin} maxMin={maxMin} overlaps={overlaps} onCreate={onCreate} />
       )}
 
       {!isMobile && !leaveMode && tasks.length === 0 && !sel && (
@@ -196,11 +215,11 @@ export function Timeline({
   )
 }
 
-function MobileCreator({ startMin, endMin, overlaps, onCreate }) {
+function MobileCreator({ startMin, endMin, maxMin = endMin, overlaps, onCreate }) {
   const opts = []
-  for (let m = startMin; m <= endMin; m += 30) opts.push(m)
+  for (let m = startMin; m <= maxMin; m += 30) opts.push(m)
   const [s, setS] = useState(startMin)
-  const [e, setE] = useState(Math.min(startMin + 60, endMin))
+  const [e, setE] = useState(Math.min(startMin + 60, maxMin))
 
   const add = () => {
     if (e <= s) return notify.error('End time must be after start time')
