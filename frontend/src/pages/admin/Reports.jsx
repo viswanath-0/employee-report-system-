@@ -3,7 +3,7 @@ import { Download, FileText, RotateCcw } from 'lucide-react'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card } from '@/components/ui/card'
 import { Table, THead, TH, TBody, TR, TD } from '@/components/ui/table'
-import { StatusBadge } from '@/components/ui/badge'
+import { StatusBadge, LeaveStatusBadge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -96,8 +96,6 @@ export default function AllReports() {
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="unapproved">Unapproved</option>
-              <option value="escalated">Escalated</option>
-              <option value="leave">Leave</option>
             </Select>
           </div>
           <div>
@@ -155,8 +153,17 @@ export default function AllReports() {
                   </TD>
                   <TD>{r.employee?.department || '—'}</TD>
                   <TD className="text-slate-600">{ddmmyyyy(r.date)}</TD>
-                  <TD><StatusBadge status={r.status} late={r.is_late} /></TD>
-                  <TD>{r.status === 'leave' ? '—' : (r.tasks_count ?? 0)}</TD>
+                  <TD>
+                    <div className="flex items-center gap-1.5">
+                      {r.leave
+                        ? <LeaveStatusBadge status={r.leave.status} />
+                        : <StatusBadge status={r.status} late={r.is_late} />}
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${r.leave ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {r.leave ? 'Leave' : 'Task'}
+                      </span>
+                    </div>
+                  </TD>
+                  <TD>{r.leave ? '—' : (r.tasks_count ?? 0)}</TD>
                   <TD className="text-right">
                     {r.locked && (
                       <Button size="sm" variant="secondary" onClick={() => reopen(r.id)}>

@@ -268,7 +268,11 @@ def _filtered_reports(db, employee_id, manager_id, department, status, date_from
         q = q.filter(models.User.manager_id == manager_id)
     if department:
         q = q.filter(models.User.department == department)
-    if status:
+    if status == "pending":
+        # "Pending" groups everything still awaiting a decision: task reports
+        # (pending/escalated) plus not-yet-decided leaves (stored as status "leave").
+        q = q.filter(models.Report.status.in_(["pending", "escalated", "leave"]))
+    elif status:
         q = q.filter(models.Report.status == status)
     if date_from:
         q = q.filter(models.Report.date >= date_from)
