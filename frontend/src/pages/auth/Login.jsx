@@ -63,13 +63,12 @@ export default function Login() {
           <div>
             <div className="flex items-center justify-between">
               <Label>Password</Label>
-              <button
-                type="button"
-                onClick={() => notify.info('Please contact your administrator to reset your password.')}
+              <Link
+                to="/forgot-password"
                 className="mb-1.5 text-xs font-medium text-brand-600 hover:underline"
               >
                 Forgot password?
-              </button>
+              </Link>
             </div>
             <div className="relative">
               <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

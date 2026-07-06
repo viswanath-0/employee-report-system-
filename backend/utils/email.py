@@ -153,6 +153,23 @@ def email_credentials(to: str, full_name: str, company_id: str, temp_password: s
     )
 
 
+def email_password_reset(to: str, full_name: str, company_id: str, temp_password: str) -> None:
+    e = html.escape
+    send_email(
+        to,
+        "Your Employee Report System password was reset",
+        _wrap(
+            "Password reset — your temporary password",
+            f"Hi {e(full_name)},<br/><br/>We received a request to reset your password. "
+            f"Use the temporary password below to sign in, then set a new one.<br/><br/>"
+            f"<b>Login ID (Company ID):</b> <code>{e(company_id)}</code><br/>"
+            f"<b>Temporary password:</b> <code>{e(temp_password)}</code><br/><br/>"
+            f"Log in at <a href='{settings.FRONTEND_URL}/login'>{settings.FRONTEND_URL}/login</a>. "
+            f"If you didn't request this, contact your administrator right away.",
+        ),
+    )
+
+
 def email_access_request(to_admin: str, full_name: str, personal_email: str,
                          department: str, role: str, joining_date: str, message: str = "") -> None:
     e = html.escape

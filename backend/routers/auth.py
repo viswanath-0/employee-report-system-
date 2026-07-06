@@ -25,7 +25,7 @@ import models
 import schemas
 from utils.jwt import verify_password, create_access_token, get_current_user, hash_password
 from utils.company_id import generate_temp_password
-from utils.email import email_credentials, email_access_request
+from utils.email import email_credentials, email_access_request, email_password_reset
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -119,6 +119,50 @@ def activate(
     return schemas.ActivateOut(
         ok=True,
         message="Your login credentials have been sent to the email on file. Check your inbox (and spam).",
+    )
+
+
+@router.post("/forgot-password", response_model=schemas.ActivateOut)
+def forgot_password(
+    payload: schemas.ActivateIn,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Self-service password reset. The user proves ownership with their Company ID +
+    the personal email on file; we issue a fresh temporary password by email and flag
+    the account so the next login forces a new password. Unlike /activate, this works
+    for already-active accounts. Generic response on mismatch (no field-level leak)."""
+    company_id = payload.company_id.strip().upper()
+    email = payload.personal_email.strip().lower()
+    admin_contact = settings.ADMIN_CONTACT_EMAIL
+
+    user = db.query(models.User).filter(models.User.company_id == company_id).first()
+
+    if not user or (user.personal_email or "").strip().lower() != email:
+        return schemas.ActivateOut(
+            ok=False,
+            message="No account matches that Company ID and personal email. "
+                    "Check your details, or contact your administrator.",
+            admin_contact=admin_contact,
+        )
+    if not user.is_active:
+        return schemas.ActivateOut(
+            ok=False,
+            message="This account has been deactivated. Please contact your administrator.",
+            admin_contact=admin_contact,
+        )
+
+    temp = generate_temp_password()
+    user.password_hash = hash_password(temp)
+    user.account_status = "password_reset_required"
+    db.commit()
+    background.add_task(
+        email_password_reset, user.personal_email, user.name, user.company_id, temp,
+    )
+    return schemas.ActivateOut(
+        ok=True,
+        message="A temporary password has been sent to your email. Sign in with it, "
+                "then you'll be asked to set a new password.",
     )
 
 
