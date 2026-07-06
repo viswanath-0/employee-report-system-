@@ -49,7 +49,7 @@ def manager_stats(db: Session = Depends(get_db),
     today = date.today().isoformat()
     if not ids:
         return {"team_size": 0, "pending_approvals": 0, "approved_today": 0,
-                "pending_escalations": 0}
+                "unapproved": 0, "pending_escalations": 0}
 
     pending = db.query(models.Report).filter(
         models.Report.employee_id.in_(ids),
@@ -57,6 +57,9 @@ def manager_stats(db: Session = Depends(get_db),
     approved_today = db.query(models.Report).filter(
         models.Report.employee_id.in_(ids), models.Report.status == "approved",
         models.Report.date == today).count()
+    unapproved = db.query(models.Report).filter(
+        models.Report.employee_id.in_(ids),
+        models.Report.status == "unapproved").count()
     escalations = (
         db.query(models.Escalation)
         .join(models.Report, models.Escalation.report_id == models.Report.id)
@@ -67,6 +70,7 @@ def manager_stats(db: Session = Depends(get_db),
         "team_size": len(ids),
         "pending_approvals": pending,
         "approved_today": approved_today,
+        "unapproved": unapproved,
         "pending_escalations": escalations,
     }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, ClipboardCheck, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Users, ClipboardCheck, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { PageHeader } from '@/components/layouts/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -35,9 +35,10 @@ export default function Dashboard() {
     <div className="space-y-5">
       <PageHeader title="Dashboard" description="An overview of your team and pending work." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <MetricCard label="Total employees" value={stats?.team_size ?? 0} icon={Users} tone="brand" loading={loading} />
         <MetricCard label="Pending approvals" value={stats?.pending_approvals ?? 0} icon={ClipboardCheck} tone="amber" loading={loading} />
+        <MetricCard label="Unapproved" value={stats?.unapproved ?? 0} icon={XCircle} tone="rose" loading={loading} />
         <MetricCard label="Approved today" value={stats?.approved_today ?? 0} icon={CheckCircle2} tone="emerald" loading={loading} />
         <MetricCard label="Pending escalations" value={stats?.pending_escalations ?? 0} icon={AlertTriangle} tone="rose" loading={loading} />
       </div>
