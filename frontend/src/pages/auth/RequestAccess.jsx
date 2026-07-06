@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Mail, CheckCircle2 } from 'lucide-react'
+import { User, Mail, CheckCircle2, AlertCircle } from 'lucide-react'
 import { AuthShell } from './AuthShell'
 import { authApi, configApi } from '@/api/endpoints'
 import { Button } from '@/components/ui/button'
@@ -53,7 +53,8 @@ export default function RequestAccess() {
         message: form.message.trim() || null,
       })
       setDone(data)
-      notify.success('Request sent to the administrator')
+      if (data.ok) notify.success('Request sent to the administrator')
+      else notify.error('This email is already registered')
     } catch (err) {
       notify.error(apiError(err, 'Could not send your request'))
     } finally {
@@ -65,14 +66,38 @@ export default function RequestAccess() {
     return (
       <AuthShell>
         <div className="animate-fade-up text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-            <CheckCircle2 className="h-7 w-7" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900">Request sent</h2>
-          <p className="mt-2 text-sm text-slate-500">{done.message}</p>
-          <Link to="/login" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">
-            Back to sign in
-          </Link>
+          {done.ok ? (
+            <>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                <CheckCircle2 className="h-7 w-7" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Request sent</h2>
+              <p className="mt-2 text-sm text-slate-500">{done.message}</p>
+              <Link to="/login" className="mt-6 inline-block text-sm font-medium text-brand-600 hover:underline">
+                Back to sign in
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                <AlertCircle className="h-7 w-7" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">Email already registered</h2>
+              <p className="mt-2 text-sm text-slate-500">{done.message}</p>
+              <div className="mt-6 flex items-center justify-center gap-4 text-sm font-medium">
+                <Link to="/login" className="text-brand-600 hover:underline">Sign in</Link>
+                <span className="text-slate-300">·</span>
+                <Link to="/forgot-password" className="text-brand-600 hover:underline">Forgot password?</Link>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDone(null)}
+                className="mt-4 text-xs font-medium text-slate-400 hover:text-slate-600"
+              >
+                ← Use a different email
+              </button>
+            </>
+          )}
         </div>
       </AuthShell>
     )

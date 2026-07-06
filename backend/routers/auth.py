@@ -16,6 +16,7 @@ Accounts are provisioned by the admin (see routers/admin.py) or claimed via
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -174,9 +175,26 @@ def request_access(
 ):
     """A candidate not yet in the directory sends their details to the admin, who then
     creates the account (assigning a manager) via the admin panel."""
+    email = payload.personal_email.strip().lower()
+
+    # An email belongs to exactly one person. Block a request for an address that is
+    # already registered (e.g. someone entering a colleague's or manager's email) so
+    # a request can't be raised against another user's identity.
+    existing = db.query(models.User).filter(
+        (func.lower(models.User.email) == email)
+        | (func.lower(models.User.personal_email) == email)
+    ).first()
+    if existing:
+        return schemas.ActivateOut(
+            ok=False,
+            message="An account with this email already exists. Please sign in, or use "
+                    "'Forgot password?' if you can't get in.",
+            admin_contact=settings.ADMIN_CONTACT_EMAIL,
+        )
+
     background.add_task(
         email_access_request, settings.ADMIN_CONTACT_EMAIL, payload.full_name.strip(),
-        payload.personal_email.strip().lower(), payload.department, payload.role,
+        email, payload.department, payload.role,
         payload.joining_date, payload.message or "",
     )
     admin = crud.get_user_by_email(db, settings.ADMIN_EMAIL.lower().strip())
