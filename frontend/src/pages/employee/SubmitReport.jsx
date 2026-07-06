@@ -154,6 +154,9 @@ export default function SubmitReport() {
 
   // ---- submit ----
   const submit = async () => {
+    if (isFuture && !isLeave) {
+      return notify.error('Future dates are for leave only — turn on "Apply for Leave" to continue.')
+    }
     if (isLeave) {
       if (!leave.reason.trim()) return notify.error('Please provide a reason for your leave')
     } else if (tasks.length === 0) {
@@ -293,6 +296,8 @@ export default function SubmitReport() {
             maxMin={maxMin}
             tasks={isLeave ? [] : tasks}
             leaveMode={isLeave}
+            disabled={isFuture && !isLeave}
+            disabledLabel="Future date — apply for leave below"
             onCreate={handleCreate}
             onEditTask={handleEdit}
           />

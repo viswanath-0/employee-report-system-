@@ -25,6 +25,8 @@ export function Timeline({
   onEditTask,
   leaveMode = false,
   maxMin = endMin,          // latest selectable minute (e.g. "now" for today)
+  disabled = false,         // hard-block task creation (e.g. a future date)
+  disabledLabel = 'Not available',
 }) {
   const total = endMin - startMin
   const trackRef = useRef(null)
@@ -32,6 +34,7 @@ export function Timeline({
   const [occupied, setOccupied] = useState(false)
   const [flash, setFlash] = useState(false)
   const isMobile = useIsMobile()
+  const locked = leaveMode || disabled   // no dragging when in leave mode or disabled
 
   const ranges = tasks.map((t) => ({ s: hhmmToMinutes(t.start_time), e: hhmmToMinutes(t.end_time) }))
   const overlaps = (s, e) => ranges.some((r) => s < r.e && e > r.s)
@@ -50,7 +53,7 @@ export function Timeline({
   }
 
   const onPointerDown = (e) => {
-    if (leaveMode || isMobile) return
+    if (locked || isMobile) return
     trackRef.current?.setPointerCapture?.(e.pointerId)
     const m = clientXToMin(e.clientX)
     setSel({ a: m, b: m })
@@ -90,7 +93,7 @@ export function Timeline({
           onPointerUp={onPointerUp}
           className={cn(
             'relative h-24 w-full overflow-hidden rounded-xl border bg-slate-50 transition',
-            leaveMode ? 'cursor-not-allowed border-slate-300' : isMobile ? 'border-slate-200' : 'cursor-crosshair border-slate-200',
+            locked ? 'cursor-not-allowed border-slate-300' : isMobile ? 'border-slate-200' : 'cursor-crosshair border-slate-200',
             flash && 'ring-2 ring-rose-400',
           )}
         >
@@ -176,11 +179,11 @@ export function Timeline({
             </div>
           )}
 
-          {/* leave overlay */}
-          {leaveMode && (
-            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-200/80 text-slate-500">
-              <Lock className="h-4 w-4" />
-              <span className="text-sm font-semibold">Leave Day</span>
+          {/* leave / disabled overlay */}
+          {(leaveMode || disabled) && (
+            <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-200/80 px-4 text-center text-slate-500">
+              <Lock className="h-4 w-4 shrink-0" />
+              <span className="text-sm font-semibold">{leaveMode ? 'Leave Day' : disabledLabel}</span>
             </div>
           )}
         </div>
@@ -202,11 +205,11 @@ export function Timeline({
         </div>
       </div>
 
-      {isMobile && !leaveMode && (
+      {isMobile && !locked && (
         <MobileCreator startMin={startMin} endMin={endMin} maxMin={maxMin} overlaps={overlaps} onCreate={onCreate} />
       )}
 
-      {!isMobile && !leaveMode && tasks.length === 0 && !sel && (
+      {!isMobile && !locked && tasks.length === 0 && !sel && (
         <p className="mt-3 text-center text-xs text-slate-400">
           Click and drag across the timeline to add a task
         </p>
