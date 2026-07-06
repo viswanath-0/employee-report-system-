@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     GMAIL_APP_PASSWORD: str = ""                                  # legacy (Gmail SMTP no longer used)
     ADMIN_CONTACT_EMAIL: str = "suddapallivviswanath@gmail.com"   # shown on "Account not found"
 
+    # Optional shared secret for the Brevo bounce webhook (?token=...). Leave empty
+    # to accept unauthenticated calls; set it in prod so only Brevo can post events.
+    WEBHOOK_SECRET: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

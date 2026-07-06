@@ -26,7 +26,7 @@ from database import engine, Base, get_db, SessionLocal
 import crud
 import schemas
 import models  # noqa: F401  (ensures models are registered on Base before create_all)
-from routers import auth, employee, manager, admin, files, notifications
+from routers import auth, employee, manager, admin, files, notifications, webhooks
 
 
 def bootstrap() -> None:
@@ -79,6 +79,7 @@ app.include_router(manager.router)
 app.include_router(admin.router)
 app.include_router(files.router)
 app.include_router(notifications.router)
+app.include_router(webhooks.router)
 
 
 # -------------------- Public routes -------------------- #
