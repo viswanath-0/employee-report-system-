@@ -27,7 +27,7 @@ import schemas
 from utils.jwt import verify_password, create_access_token, get_current_user, hash_password
 from utils.company_id import generate_temp_password
 from utils.email import email_credentials, email_access_request, email_password_reset
-from utils.emailcheck import email_domain_error
+from utils.emailcheck import email_domain_error, deliverability_error
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -200,6 +200,15 @@ def request_access(
             ok=False,
             message="An account with this email already exists. Please sign in, or use "
                     "'Forgot password?' if you can't get in.",
+            admin_contact=settings.ADMIN_CONTACT_EMAIL,
+        )
+
+    # Real-time check that the mailbox actually exists (catches alipithreey@gmail.com).
+    deliver_error = deliverability_error(email)
+    if deliver_error:
+        return schemas.ActivateOut(
+            ok=False,
+            message=deliver_error,
             admin_contact=settings.ADMIN_CONTACT_EMAIL,
         )
 

@@ -24,7 +24,7 @@ from utils.company_id import (
     generate_company_id, generate_temp_password, valid_dept_code, dept_name,
 )
 from utils.email import email_credentials, is_configured
-from utils.emailcheck import email_domain_error
+from utils.emailcheck import email_domain_error, deliverability_error
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -52,6 +52,9 @@ def create_directory_user(
         raise HTTPException(400, domain_error)
     if crud.get_user_by_email(db, personal_email):
         raise HTTPException(400, "A user with this personal email already exists")
+    deliver_error = deliverability_error(personal_email)
+    if deliver_error:
+        raise HTTPException(400, deliver_error)
 
     manager_id = None
     if payload.role == "employee" and payload.manager_id:

@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # to accept unauthenticated calls; set it in prod so only Brevo can post events.
     WEBHOOK_SECRET: str = ""
 
+    # Real-time email verification (AbstractAPI Email Reputation). Empty = disabled,
+    # so signups aren't blocked on deliverability. Set the key in prod (env only!).
+    ABSTRACT_API_KEY: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

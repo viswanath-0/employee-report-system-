@@ -4,7 +4,15 @@ utils/emailcheck.py
 Personal emails must come from one of a fixed set of accepted providers.
 `email_domain_error` returns None when the domain is accepted, or a human-readable
 error message otherwise (suggesting the closest provider when it looks like a typo).
+`deliverability_error` adds an optional real-time check (AbstractAPI Email
+Reputation) that catches non-existent mailboxes (e.g. alipithreey@gmail.com).
 """
+
+import json
+import urllib.request
+from urllib.parse import quote
+
+from config import settings
 
 # The ONLY email domains the app accepts for a personal email.
 ALLOWED_DOMAINS = (
@@ -48,3 +56,27 @@ def email_domain_error(email: str) -> str | None:
         if len(d.split(".")[0]) >= 5 and _damerau_levenshtein(domain, d) <= 2:
             return f"Did you mean {local}@{d}? Only common email providers are accepted."
     return f"Please use an email from an accepted provider ({_ACCEPTED_LABEL})."
+
+
+_ABSTRACT_URL = "https://emailreputation.abstractapi.com/v1/"
+
+
+def deliverability_error(email: str) -> str | None:
+    """Real-time mailbox check via AbstractAPI's Email Reputation API. Returns an
+    error message when the address is known-undeliverable (the mailbox doesn't
+    exist), else None. Fails OPEN (returns None) when the key is unset or the API
+    errors/times out, so a verifier outage never blocks a legitimate signup."""
+    key = settings.ABSTRACT_API_KEY
+    if not key:
+        return None
+    try:
+        url = f"{_ABSTRACT_URL}?api_key={key}&email={quote((email or '').strip())}"
+        req = urllib.request.Request(url, headers={"User-Agent": "EmployeeReportSystem/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None  # network/API problem → don't block the user
+    status = str((data.get("email_deliverability") or {}).get("status") or "").lower()
+    if status == "undeliverable":
+        return "That email address doesn't exist (address not found). Please enter a real, working email."
+    return None
