@@ -1,17 +1,18 @@
 """
 utils/emailcheck.py
 
-Catch likely typos of common email providers (e.g. "gomail.com" -> "gmail.com").
-EmailStr already guarantees a well-formed address; this adds a "did you mean…?"
-guard so an obviously-mistyped domain doesn't sail through.
+Personal emails must come from one of a fixed set of accepted providers.
+`email_domain_error` returns None when the domain is accepted, or a human-readable
+error message otherwise (suggesting the closest provider when it looks like a typo).
 """
 
-# The big consumer providers people usually mean. Kept intentionally to
-# longer names (SLD >= 5 chars) so short custom company domains don't false-match.
-COMMON_DOMAINS = (
+# The ONLY email domains the app accepts for a personal email.
+ALLOWED_DOMAINS = (
     "gmail.com", "yahoo.com", "yahoo.co.in", "outlook.com", "hotmail.com",
     "icloud.com", "protonmail.com", "proton.me", "rediffmail.com", "ymail.com",
 )
+
+_ACCEPTED_LABEL = "Gmail, Yahoo, Outlook, Hotmail, iCloud, Proton, Rediffmail"
 
 
 def _damerau_levenshtein(a: str, b: str) -> int:
@@ -31,16 +32,19 @@ def _damerau_levenshtein(a: str, b: str) -> int:
     return d[la][lb]
 
 
-def email_domain_suggestion(email: str) -> str | None:
-    """If the email's domain is a near-miss typo of a common provider (but not
-    exactly one), return the corrected full email; otherwise None."""
+def email_domain_error(email: str) -> str | None:
+    """None if the email's domain is an accepted provider; otherwise an error
+    message (with a 'did you mean…?' hint when the domain is a near-miss typo)."""
     email = (email or "").strip().lower()
     if "@" not in email:
-        return None
+        return "Please enter a valid email address."
     local, _, domain = email.rpartition("@")
-    if not local or not domain or domain in COMMON_DOMAINS:
+    if not local or not domain:
+        return "Please enter a valid email address."
+    if domain in ALLOWED_DOMAINS:
         return None
-    for d in COMMON_DOMAINS:
+    # Not accepted — if it's a close typo of an allowed provider, suggest it.
+    for d in ALLOWED_DOMAINS:
         if len(d.split(".")[0]) >= 5 and _damerau_levenshtein(domain, d) <= 2:
-            return f"{local}@{d}"
-    return None
+            return f"Did you mean {local}@{d}? Only common email providers are accepted."
+    return f"Please use an email from an accepted provider ({_ACCEPTED_LABEL})."

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { todayISO } from '@/utils/date'
-import { isValidEmail, emailTypoSuggestion } from '@/utils/format'
+import { isValidEmail, emailDomainError } from '@/utils/format'
 import { notify, apiError } from '@/utils/toast'
 import { cn } from '@/utils/cn'
 
@@ -43,8 +43,8 @@ export default function RequestAccess() {
     if (!form.full_name.trim()) return notify.error('Full name is required')
     if (!form.personal_email.trim()) return notify.error('Personal email is required')
     if (!isValidEmail(form.personal_email)) return notify.error('Please enter a valid email address')
-    const suggestion = emailTypoSuggestion(form.personal_email)
-    if (suggestion) return notify.error(`Did you mean ${suggestion}? Please double-check your email.`)
+    const domainError = emailDomainError(form.personal_email)
+    if (domainError) return notify.error(domainError)
     if (!form.department) return notify.error('Please choose a department')
     setLoading(true)
     try {

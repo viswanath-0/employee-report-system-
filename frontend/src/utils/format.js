@@ -20,11 +20,12 @@ export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((email || '').trim())
 }
 
-// Common consumer providers (longer names only, so short custom domains don't false-match).
-const COMMON_EMAIL_DOMAINS = [
+// The ONLY email domains accepted for a personal email.
+const ALLOWED_EMAIL_DOMAINS = [
   'gmail.com', 'yahoo.com', 'yahoo.co.in', 'outlook.com', 'hotmail.com',
   'icloud.com', 'protonmail.com', 'proton.me', 'rediffmail.com', 'ymail.com',
 ]
+const ACCEPTED_LABEL = 'Gmail, Yahoo, Outlook, Hotmail, iCloud, Proton, Rediffmail'
 
 // Damerau–Levenshtein edit distance (a transposition counts as one edit).
 function editDistance(a, b) {
@@ -44,18 +45,22 @@ function editDistance(a, b) {
   return d[la][lb]
 }
 
-/** If the email's domain is a near-typo of a common provider, return the corrected email. */
-export function emailTypoSuggestion(email) {
+/** null if the email's domain is an accepted provider; otherwise an error message
+ *  (with a "did you mean…?" hint when the domain is a near-miss typo). */
+export function emailDomainError(email) {
   const e = (email || '').trim().toLowerCase()
   const at = e.lastIndexOf('@')
-  if (at < 1) return null
+  if (at < 1) return 'Please enter a valid email address.'
   const local = e.slice(0, at)
   const domain = e.slice(at + 1)
-  if (!domain || COMMON_EMAIL_DOMAINS.includes(domain)) return null
-  for (const d of COMMON_EMAIL_DOMAINS) {
-    if (d.split('.')[0].length >= 5 && editDistance(domain, d) <= 2) return `${local}@${d}`
+  if (!domain) return 'Please enter a valid email address.'
+  if (ALLOWED_EMAIL_DOMAINS.includes(domain)) return null
+  for (const d of ALLOWED_EMAIL_DOMAINS) {
+    if (d.split('.')[0].length >= 5 && editDistance(domain, d) <= 2) {
+      return `Did you mean ${local}@${d}? Only common email providers are accepted.`
+    }
   }
-  return null
+  return `Please use an email from an accepted provider (${ACCEPTED_LABEL}).`
 }
 
 // Status badge styling (green/red/yellow/blue/gray per spec)

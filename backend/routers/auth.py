@@ -27,7 +27,7 @@ import schemas
 from utils.jwt import verify_password, create_access_token, get_current_user, hash_password
 from utils.company_id import generate_temp_password
 from utils.email import email_credentials, email_access_request, email_password_reset
-from utils.emailcheck import email_domain_suggestion
+from utils.emailcheck import email_domain_error
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -178,13 +178,13 @@ def request_access(
     creates the account (assigning a manager) via the admin panel."""
     email = payload.personal_email.strip().lower()
 
-    # Guard against a mistyped common-provider domain (e.g. gomail.com -> gmail.com).
-    suggestion = email_domain_suggestion(email)
-    if suggestion:
+    # Only accepted email providers are allowed (rejects e.g. sai@zoo.com, and
+    # suggests a correction for a near-miss typo like gomail.com -> gmail.com).
+    domain_error = email_domain_error(email)
+    if domain_error:
         return schemas.ActivateOut(
             ok=False,
-            message=f"That email domain looks off — did you mean {suggestion}? "
-                    "Please re-enter a valid email address.",
+            message=domain_error,
             admin_contact=settings.ADMIN_CONTACT_EMAIL,
         )
 
