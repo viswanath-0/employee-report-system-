@@ -13,6 +13,21 @@ export function todayISO() {
   return toISO(new Date())
 }
 
+/**
+ * Parse a timestamp coming from the backend. The API stores times in UTC but
+ * serializes them WITHOUT a timezone marker (e.g. "2026-07-06T09:32:00"). The
+ * browser would read that as *local* time, throwing every "x ago" off by the
+ * local offset (e.g. a fresh notification showing "5h ago" in IST). So when a
+ * datetime has no timezone marker, treat it as UTC by appending "Z".
+ */
+export function parseServerDate(value) {
+  if (!value) return null
+  if (value instanceof Date) return value
+  const s = String(value)
+  const hasTz = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)
+  return new Date(s.includes('T') && !hasTz ? `${s}Z` : s)
+}
+
 /** ISO 'YYYY-MM-DD' -> 'DD-MM-YYYY' */
 export function ddmmyyyy(iso) {
   if (!iso) return ''
@@ -34,8 +49,8 @@ export function prettyDate(iso) {
 
 /** ISO datetime string -> '02 Jul, 14:30' */
 export function prettyDateTime(value) {
-  if (!value) return ''
-  const d = new Date(value)
+  const d = parseServerDate(value)
+  if (!d) return ''
   return d.toLocaleString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -45,8 +60,8 @@ export function prettyDateTime(value) {
 }
 
 export function relativeTime(value) {
-  if (!value) return ''
-  const d = new Date(value)
+  const d = parseServerDate(value)
+  if (!d) return ''
   const diff = (Date.now() - d.getTime()) / 1000
   if (diff < 60) return 'just now'
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
@@ -92,8 +107,8 @@ export function canEscalate(status, createdAtISO) {
   if (status !== 'pending') return false
   const now = new Date()
   if (isLastDayOfMonth(now)) return true
-  const created = new Date(createdAtISO)
-  return (now - created) / 86400000 >= 30
+  const created = parseServerDate(createdAtISO)
+  return created ? (now - created) / 86400000 >= 30 : false
 }
 
 /** 6x7 grid of days for a month view. month is 0-indexed. */
