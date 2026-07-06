@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { todayISO } from '@/utils/date'
+import { isValidEmail, emailTypoSuggestion } from '@/utils/format'
 import { notify, apiError } from '@/utils/toast'
 import { cn } from '@/utils/cn'
 
@@ -41,6 +42,9 @@ export default function RequestAccess() {
     e.preventDefault()
     if (!form.full_name.trim()) return notify.error('Full name is required')
     if (!form.personal_email.trim()) return notify.error('Personal email is required')
+    if (!isValidEmail(form.personal_email)) return notify.error('Please enter a valid email address')
+    const suggestion = emailTypoSuggestion(form.personal_email)
+    if (suggestion) return notify.error(`Did you mean ${suggestion}? Please double-check your email.`)
     if (!form.department) return notify.error('Please choose a department')
     setLoading(true)
     try {
@@ -82,7 +86,7 @@ export default function RequestAccess() {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
                 <AlertCircle className="h-7 w-7" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900">Email already registered</h2>
+              <h2 className="text-2xl font-bold text-slate-900">Please check your email</h2>
               <p className="mt-2 text-sm text-slate-500">{done.message}</p>
               <div className="mt-6 flex items-center justify-center gap-4 text-sm font-medium">
                 <Link to="/login" className="text-brand-600 hover:underline">Sign in</Link>

@@ -24,6 +24,7 @@ from utils.company_id import (
     generate_company_id, generate_temp_password, valid_dept_code, dept_name,
 )
 from utils.email import email_credentials, is_configured
+from utils.emailcheck import email_domain_suggestion
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -46,6 +47,9 @@ def create_directory_user(
         raise HTTPException(400, "joining_date must be an ISO date (YYYY-MM-DD)")
 
     personal_email = payload.personal_email.lower().strip()
+    suggestion = email_domain_suggestion(personal_email)
+    if suggestion:
+        raise HTTPException(400, f"That email domain looks off — did you mean {suggestion}?")
     if crud.get_user_by_email(db, personal_email):
         raise HTTPException(400, "A user with this personal email already exists")
 

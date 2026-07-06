@@ -15,6 +15,49 @@ export function roleHome(role) {
   return '/employee'
 }
 
+// -------------------- email validation --------------------
+export function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((email || '').trim())
+}
+
+// Common consumer providers (longer names only, so short custom domains don't false-match).
+const COMMON_EMAIL_DOMAINS = [
+  'gmail.com', 'yahoo.com', 'yahoo.co.in', 'outlook.com', 'hotmail.com',
+  'icloud.com', 'protonmail.com', 'proton.me', 'rediffmail.com', 'ymail.com',
+]
+
+// Damerau–Levenshtein edit distance (a transposition counts as one edit).
+function editDistance(a, b) {
+  const la = a.length, lb = b.length
+  const d = Array.from({ length: la + 1 }, () => new Array(lb + 1).fill(0))
+  for (let i = 0; i <= la; i++) d[i][0] = i
+  for (let j = 0; j <= lb; j++) d[0][j] = j
+  for (let i = 1; i <= la; i++) {
+    for (let j = 1; j <= lb; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost)
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
+      }
+    }
+  }
+  return d[la][lb]
+}
+
+/** If the email's domain is a near-typo of a common provider, return the corrected email. */
+export function emailTypoSuggestion(email) {
+  const e = (email || '').trim().toLowerCase()
+  const at = e.lastIndexOf('@')
+  if (at < 1) return null
+  const local = e.slice(0, at)
+  const domain = e.slice(at + 1)
+  if (!domain || COMMON_EMAIL_DOMAINS.includes(domain)) return null
+  for (const d of COMMON_EMAIL_DOMAINS) {
+    if (d.split('.')[0].length >= 5 && editDistance(domain, d) <= 2) return `${local}@${d}`
+  }
+  return null
+}
+
 // Status badge styling (green/red/yellow/blue/gray per spec)
 export const STATUS_META = {
   approved: { label: 'Approved', pill: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20', dot: 'bg-emerald-500' },

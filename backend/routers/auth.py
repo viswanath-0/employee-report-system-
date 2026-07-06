@@ -27,6 +27,7 @@ import schemas
 from utils.jwt import verify_password, create_access_token, get_current_user, hash_password
 from utils.company_id import generate_temp_password
 from utils.email import email_credentials, email_access_request, email_password_reset
+from utils.emailcheck import email_domain_suggestion
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -176,6 +177,16 @@ def request_access(
     """A candidate not yet in the directory sends their details to the admin, who then
     creates the account (assigning a manager) via the admin panel."""
     email = payload.personal_email.strip().lower()
+
+    # Guard against a mistyped common-provider domain (e.g. gomail.com -> gmail.com).
+    suggestion = email_domain_suggestion(email)
+    if suggestion:
+        return schemas.ActivateOut(
+            ok=False,
+            message=f"That email domain looks off — did you mean {suggestion}? "
+                    "Please re-enter a valid email address.",
+            admin_contact=settings.ADMIN_CONTACT_EMAIL,
+        )
 
     # An email belongs to exactly one person. Block a request for an address that is
     # already registered (e.g. someone entering a colleague's or manager's email) so
