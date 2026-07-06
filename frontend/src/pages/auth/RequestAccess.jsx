@@ -58,7 +58,8 @@ export default function RequestAccess() {
       })
       setDone(data)
       if (data.ok) notify.success('Request sent to the administrator')
-      else notify.error('This email is already registered')
+      // on rejection, the full-screen result already explains the exact reason —
+      // no toast (it would otherwise show a wrong, one-size-fits-all message)
     } catch (err) {
       notify.error(apiError(err, 'Could not send your request'))
     } finally {
