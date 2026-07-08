@@ -176,7 +176,8 @@ def resubmit_report(
         raise HTTPException(400, "This report has been finalised and can no longer be changed.")
 
     _clear_report_content(db, report)
-    report.correction_message = None
+    # Keep correction_message: the clarification stays visible until the manager
+    # APPROVES (approval clears it). Resubmitting only records the response below.
     report.is_late = is_submission_late(report.date, report.deadline, datetime.now())
 
     explanation = (payload.explanation or payload.note or "").strip()

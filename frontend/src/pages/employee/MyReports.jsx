@@ -159,6 +159,7 @@ export default function MyReports() {
                 <TH>Status</TH>
                 <TH>Deadline</TH>
                 <TH>Manager feedback</TH>
+                <TH>Clarification</TH>
                 <TH className="text-right">Actions</TH>
               </TR>
             </THead>
@@ -183,16 +184,27 @@ export default function MyReports() {
                         </div>
                       </TD>
                       <TD className="text-slate-500">{hhmmToLabel(r.deadline)}</TD>
-                      <TD className="max-w-[200px] truncate text-slate-500">
-                        {r.correction_message || '—'}
+                      <TD className="max-w-[180px] truncate text-slate-500">
+                        {r.manager_feedback || '—'}
+                      </TD>
+                      <TD onClick={(e) => e.stopPropagation()}>
+                        {r.correction_message ? (
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="max-w-[200px] truncate text-rose-600" title={r.correction_message}>
+                              {r.correction_message}
+                            </span>
+                            {r.status === 'unapproved' && (
+                              <Button size="sm" variant="warning" onClick={() => setResubmitFor(r)}>
+                                <RefreshCw className="h-3.5 w-3.5" /> Resubmit
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </TD>
                       <TD className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1.5">
-                          {r.status === 'unapproved' && (
-                            <Button size="sm" variant="warning" onClick={() => setResubmitFor(r)}>
-                              <RefreshCw className="h-3.5 w-3.5" /> Resubmit
-                            </Button>
-                          )}
                           {escalatable && (
                             <Button size="sm" variant="subtle" onClick={() => setEscalateFor(r)}>
                               <ArrowUpCircle className="h-3.5 w-3.5" /> Escalate
@@ -203,7 +215,7 @@ export default function MyReports() {
                     </TR>
                     {open && (
                       <tr className="bg-slate-50/60">
-                        <td colSpan={7} className="px-6 py-4">
+                        <td colSpan={8} className="px-6 py-4">
                           {r.status === 'unapproved' && r.correction_message && (
                             <div className="mb-3 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />

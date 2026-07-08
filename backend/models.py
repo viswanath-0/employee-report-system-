@@ -66,7 +66,8 @@ class Report(Base):
     status             = Column(String(20), default="pending", nullable=False, index=True)
     deadline           = Column(String(5), default="20:00", nullable=False)  # HH:MM
     is_late            = Column(Boolean, default=False, nullable=False)
-    correction_message = Column(Text, nullable=True)
+    correction_message = Column(Text, nullable=True)       # clarification request — clears on approval
+    manager_feedback   = Column(Text, nullable=True)       # lasting review comment — persists (migration 003)
     clarification_response = Column(Text, nullable=True)   # employee's explanation on resubmit
     proof_files            = Column(Text, nullable=True)   # JSON list of proof attachments
     locked                 = Column(Boolean, default=False, nullable=False)  # final-unapprove lock

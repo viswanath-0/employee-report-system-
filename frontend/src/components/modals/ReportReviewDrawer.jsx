@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  X, CheckCircle2, MessageSquare, XCircle, AlertCircle, Lock,
+  X, CheckCircle2, MessageSquare, MessageCircle, XCircle, AlertCircle, Lock,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -23,9 +23,10 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  // 'idle' | 'clarify' | 'confirm-unapprove'
+  // 'idle' | 'clarify' | 'feedback' | 'confirm-unapprove'
   const [mode, setMode] = useState('idle')
   const [message, setMessage] = useState('')
+  const [feedback, setFeedback] = useState('')
 
   // Fetch the report whenever the drawer opens with an id.
   useEffect(() => {
@@ -33,6 +34,7 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
     setReport(null)
     setMode('idle')
     setMessage('')
+    setFeedback('')
     setLoading(true)
     managerApi
       .report(reportId)
@@ -93,6 +95,23 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
       await managerApi.unapprove(report.id, null)
       notify.success('Report marked as unapproved')
       done()
+    } catch (err) {
+      notify.error(apiError(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Feedback is a lasting comment — save it, keep the drawer open so the manager
+  // can still approve/clarify, and refresh the list behind.
+  const doFeedback = async () => {
+    setBusy(true)
+    try {
+      const { data } = await managerApi.feedback(report.id, feedback.trim())
+      setReport(data)
+      setMode('idle')
+      onActioned?.()
+      notify.success(feedback.trim() ? 'Feedback saved' : 'Feedback cleared')
     } catch (err) {
       notify.error(apiError(err))
     } finally {
@@ -178,8 +197,18 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
                 <div className="mb-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-medium">Previous clarification request:</p>
+                    <p className="font-medium">Clarification requested:</p>
                     <p>{report.correction_message}</p>
+                  </div>
+                </div>
+              )}
+
+              {report.manager_feedback && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-700">
+                  <MessageCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium">Your feedback:</p>
+                    <p>{report.manager_feedback}</p>
                   </div>
                 </div>
               )}
@@ -220,6 +249,29 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
                   </Button>
                 </div>
               </div>
+            ) : mode === 'feedback' ? (
+              <div className="space-y-3">
+                <div>
+                  <Label>Feedback for the employee</Label>
+                  <Textarea
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    placeholder="Share a comment about this report (leave empty to clear)…"
+                    autoFocus
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    A lasting note the employee sees under Manager Feedback. It does not change the report status.
+                  </p>
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setMode('idle')} disabled={busy}>
+                    Cancel
+                  </Button>
+                  <Button loading={busy} onClick={doFeedback}>
+                    Save feedback
+                  </Button>
+                </div>
+              </div>
             ) : mode === 'confirm-unapprove' ? (
               <div className="space-y-3">
                 <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -239,16 +291,24 @@ export function ReportReviewDrawer({ reportId, open, onClose, onActioned }) {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="warning" onClick={() => setMode('clarify')}>
-                  <MessageSquare className="h-4 w-4" /> Request Clarification
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => { setFeedback(report.manager_feedback || ''); setMode('feedback') }}
+                >
+                  <MessageCircle className="h-4 w-4" /> {report.manager_feedback ? 'Edit feedback' : 'Feedback'}
                 </Button>
-                <Button variant="danger" onClick={() => setMode('confirm-unapprove')}>
-                  <XCircle className="h-4 w-4" /> Unapprove
-                </Button>
-                <Button variant="success" loading={busy} onClick={doApprove}>
-                  <CheckCircle2 className="h-4 w-4" /> Approve
-                </Button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button variant="warning" onClick={() => setMode('clarify')}>
+                    <MessageSquare className="h-4 w-4" /> Request Clarification
+                  </Button>
+                  <Button variant="danger" onClick={() => setMode('confirm-unapprove')}>
+                    <XCircle className="h-4 w-4" /> Unapprove
+                  </Button>
+                  <Button variant="success" loading={busy} onClick={doApprove}>
+                    <CheckCircle2 className="h-4 w-4" /> Approve
+                  </Button>
+                </div>
               </div>
             )}
           </div>

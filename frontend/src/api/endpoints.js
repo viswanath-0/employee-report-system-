@@ -59,6 +59,8 @@ export const managerApi = {
   approve: (id) => api.put(`/manager/report/${id}/approve`),
   unapprove: (id, message) =>
     api.put(`/manager/report/${id}/unapprove`, { message: message ?? null }),
+  feedback: (id, message) =>
+    api.put(`/manager/report/${id}/feedback`, { message: message ?? '' }),
   leaves: () => api.get('/manager/leaves'),
   approveLeave: (id) => api.put(`/manager/leave/${id}/approve`),
   rejectLeave: (id) => api.put(`/manager/leave/${id}/reject`),

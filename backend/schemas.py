@@ -196,6 +196,7 @@ class ReportOut(BaseModel):
     deadline: str
     is_late: bool
     correction_message: Optional[str] = None
+    manager_feedback: Optional[str] = None
     clarification_response: Optional[str] = None
     locked: bool = False
     proof_files: list = []
@@ -254,6 +255,11 @@ class ClarificationIn(BaseModel):
 
 class UnapproveIn(BaseModel):
     message: Optional[str] = None
+
+
+class FeedbackIn(BaseModel):
+    # A lasting review comment. Empty string clears the feedback.
+    message: str = ""
 
 
 # ==================== Notifications ==================== #

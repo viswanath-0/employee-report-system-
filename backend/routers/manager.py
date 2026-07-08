@@ -210,6 +210,28 @@ def unapprove_report(report_id: int, payload: schemas.UnapproveIn,
     return report
 
 
+@router.put("/report/{report_id}/feedback", response_model=schemas.ReportOut)
+def report_feedback(report_id: int, payload: schemas.FeedbackIn,
+                    db: Session = Depends(get_db),
+                    manager: models.User = Depends(get_current_manager)):
+    """Leave (or update/clear) a lasting review comment on a report. Unlike a
+    clarification request this does NOT change the status or ask for a resubmit —
+    it's a persistent note the employee sees under 'Manager Feedback'."""
+    report = _team_report(db, manager, report_id)
+    msg = (payload.message or "").strip()
+    report.manager_feedback = msg or None
+    if msg:
+        crud.create_notification(
+            db, user_id=report.employee_id,
+            title="Manager left feedback 💬",
+            message=f"{manager.name}: {msg}",
+            type="info", link="/employee/reports", commit=False,
+        )
+    db.commit()
+    db.refresh(report)
+    return report
+
+
 # -------------------- Leave requests -------------------- #
 @router.get("/leaves", response_model=list[dict])
 def leave_requests(db: Session = Depends(get_db),
@@ -254,6 +276,7 @@ def approve_leave(leave_id: int, background: BackgroundTasks,
     lv = _get_team_leave(db, manager, leave_id)
     lv.status = "approved"
     lv.report.status = "approved"
+    lv.report.correction_message = None   # approving resolves any open clarification
     emp = lv.report.employee
     crud.create_notification(
         db, user_id=emp.id, title="Leave approved ✅",
