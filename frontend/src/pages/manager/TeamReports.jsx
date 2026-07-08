@@ -11,7 +11,7 @@ import { ReportDetail } from '@/components/ReportDetail'
 import { ReportReviewDrawer } from '@/components/modals/ReportReviewDrawer'
 import { MiniTimeline } from '@/components/timeline/MiniTimeline'
 import { managerApi } from '@/api/endpoints'
-import { ddmmyyyy, hhmmToLabel } from '@/utils/date'
+import { ddmmyyyy, timeLabel } from '@/utils/date'
 import { notify, apiError } from '@/utils/toast'
 import { cn } from '@/utils/cn'
 
@@ -137,7 +137,11 @@ export default function TeamReports() {
                         <span className="font-medium text-slate-900">{ddmmyyyy(r.date)}</span>
                         <span className="text-xs text-slate-400">{r.leave ? 'Leave' : `${r.tasks_count} task${r.tasks_count === 1 ? '' : 's'}`}</span>
                         <span className="ml-auto flex items-center gap-3">
-                          <span className="hidden text-xs text-slate-400 sm:inline">{hhmmToLabel(r.deadline)}</span>
+                          {r.created_at && (
+                            <span className="hidden text-xs text-slate-400 sm:inline">
+                              Submitted {timeLabel(r.created_at)}
+                            </span>
+                          )}
                           <StatusBadge status={r.status} late={r.is_late} />
                         </span>
                       </button>

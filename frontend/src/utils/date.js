@@ -59,6 +59,13 @@ export function prettyDateTime(value) {
   })
 }
 
+/** ISO datetime string -> '3:45 PM' (submission time, timezone-safe) */
+export function timeLabel(value) {
+  const d = parseServerDate(value)
+  if (!d) return ''
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
 export function relativeTime(value) {
   const d = parseServerDate(value)
   if (!d) return ''
