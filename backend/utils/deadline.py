@@ -5,7 +5,9 @@ Deadline + escalation business rules.
 """
 
 import calendar
-from datetime import datetime, date
+from datetime import datetime, date, time, timedelta, timezone
+
+from config import settings
 
 
 def hhmm_to_minutes(hhmm: str) -> int:
@@ -21,6 +23,11 @@ def is_submission_late(report_date: str, deadline_hhmm: str, submitted_at: datet
     """
     A report is 'late' if it was submitted after `deadline_hhmm` on its report date.
     report_date is ISO 'YYYY-MM-DD'.
+
+    Timezone-aware: the deadline (e.g. "20:00") is a LOCAL wall-clock time, but the
+    server runs in UTC. We anchor the deadline to the company timezone
+    (settings.TZ_OFFSET_MINUTES) and treat a naive `submitted_at` as UTC — so a report
+    filed at 10:53 PM local correctly counts as after an 8:00 PM local deadline.
     """
     try:
         rd = datetime.strptime(report_date, "%Y-%m-%d").date()
@@ -29,9 +36,12 @@ def is_submission_late(report_date: str, deadline_hhmm: str, submitted_at: datet
     try:
         dl_time = datetime.strptime(deadline_hhmm, "%H:%M").time()
     except Exception:
-        dl_time = datetime.strptime("20:00", "%H:%M").time()
+        dl_time = time(20, 0)
 
-    deadline_dt = datetime.combine(rd, dl_time)
+    local_tz = timezone(timedelta(minutes=settings.TZ_OFFSET_MINUTES))
+    deadline_dt = datetime.combine(rd, dl_time, tzinfo=local_tz)
+    if submitted_at.tzinfo is None:          # naive timestamps are UTC (server convention)
+        submitted_at = submitted_at.replace(tzinfo=timezone.utc)
     return submitted_at > deadline_dt
 
 

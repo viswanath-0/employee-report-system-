@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     WORK_DAY_START: str = "09:00"   # timeline start (24h HH:MM)
     WORK_DAY_END: str = "21:00"     # timeline end   (24h HH:MM)
     DEFAULT_DEADLINE: str = "20:00"  # 8:00 PM
+    # Company timezone offset from UTC, in minutes (IST = +5:30 = 330). The server runs
+    # in UTC; the deadline above is a LOCAL wall-clock time, so lateness is judged in this
+    # timezone. India has no DST, so a fixed offset is exact.
+    TZ_OFFSET_MINUTES: int = 330
 
     # -------------------- Bootstrap admin -------------------- #
     ADMIN_NAME: str = "System Admin"
