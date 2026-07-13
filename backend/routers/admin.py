@@ -198,7 +198,14 @@ def all_employees(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
-    q = db.query(models.User).filter(models.User.role == "employee")
+    # Only show employees who have ACTIVATED their account (logged in and set their own
+    # password → account_status "active"). Provisioned-but-not-yet-activated accounts
+    # (still on a temp password, or a dead email that never received one) stay hidden
+    # until they activate.
+    q = db.query(models.User).filter(
+        models.User.role == "employee",
+        models.User.account_status == "active",
+    )
     if search:
         like = f"%{search}%"
         q = q.filter((models.User.name.like(like)) | (models.User.email.like(like)))

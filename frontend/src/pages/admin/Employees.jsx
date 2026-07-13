@@ -114,7 +114,7 @@ export default function AllEmployees() {
     <div>
       <PageHeader
         title="All Employees"
-        description="Every employee across the company, with their reporting activity."
+        description="Employees who have activated their account. A new hire appears here once they log in and set their own password."
         actions={
           <Button onClick={() => setShowAdd(true)}>
             <UserPlus className="h-4 w-4" /> Add Employee
