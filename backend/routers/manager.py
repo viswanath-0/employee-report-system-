@@ -22,7 +22,12 @@ router = APIRouter(prefix="/manager", tags=["Manager"])
 
 # -------------------- helpers -------------------- #
 def _team_ids(db: Session, manager: models.User) -> list[int]:
-    rows = db.query(models.User.id).filter(models.User.manager_id == manager.id).all()
+    # Activated team members only — a provisioned hire who hasn't logged in / set their
+    # own password yet (or a dead-email account) doesn't count as team until active.
+    rows = db.query(models.User.id).filter(
+        models.User.manager_id == manager.id,
+        models.User.account_status == "active",
+    ).all()
     return [r[0] for r in rows]
 
 
@@ -80,7 +85,8 @@ def team(db: Session = Depends(get_db),
          manager: models.User = Depends(get_current_manager)):
     members = (
         db.query(models.User)
-        .filter(models.User.manager_id == manager.id)
+        .filter(models.User.manager_id == manager.id,
+                models.User.account_status == "active")
         .order_by(models.User.name)
         .all()
     )
