@@ -109,13 +109,22 @@ export function isLastDayOfMonth(d = new Date()) {
   return d.getDate() === last.getDate()
 }
 
-/** Mirrors backend rule: pending + (last day of month OR 30+ days old). */
-export function canEscalate(status, createdAtISO) {
+/** Mirrors backend rule: pending AND (last day of month OR 30+ days old OR the
+ *  report's date is from a previous month). */
+export function canEscalate(status, createdAtISO, reportDateISO) {
   if (status !== 'pending') return false
   const now = new Date()
   if (isLastDayOfMonth(now)) return true
   const created = parseServerDate(createdAtISO)
-  return created ? (now - created) / 86400000 >= 30 : false
+  if (created && (now - created) / 86400000 >= 30) return true
+  // report belongs to a previous month (e.g. a June report while it is July)
+  if (reportDateISO) {
+    const [y, m] = reportDateISO.split('-').map(Number)
+    if (y && m && (y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth() + 1))) {
+      return true
+    }
+  }
+  return false
 }
 
 /** 6x7 grid of days for a month view. month is 0-indexed. */

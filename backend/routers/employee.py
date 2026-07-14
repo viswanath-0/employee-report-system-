@@ -289,11 +289,12 @@ def escalate(
     if not report or report.employee_id != user.id:
         raise HTTPException(404, "Report not found")
 
-    if not can_escalate(report.status, report.created_at):
+    if not can_escalate(report.status, report.created_at, report.date):
         raise HTTPException(
             400,
             "This report cannot be escalated yet. Escalation is available for pending "
-            "reports on the last day of the month, or after 30 days without action.",
+            "reports from a previous month, on the last day of the month, or after 30 "
+            "days without action.",
         )
 
     esc = models.Escalation(report_id=report.id, message=payload.message, status="sent")

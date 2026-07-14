@@ -166,7 +166,7 @@ export default function MyReports() {
             <TBody>
               {filtered.map((r) => {
                 const open = expanded === r.id
-                const escalatable = canEscalate(r.status, r.created_at)
+                const escalatable = canEscalate(r.status, r.created_at, r.date)
                 return (
                   <Fragment key={r.id}>
                     <TR className="cursor-pointer" onClick={() => setExpanded(open ? null : r.id)}>

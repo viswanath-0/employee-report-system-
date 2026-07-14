@@ -51,17 +51,27 @@ def is_last_day_of_month(today: date | None = None) -> bool:
     return today.day == last
 
 
-def can_escalate(status: str, created_at: datetime, today: date | None = None) -> bool:
+def can_escalate(status: str, created_at: datetime, report_date: str | None = None,
+                 today: date | None = None) -> bool:
     """
-    An employee may escalate a report only if:
-      a) status is still 'pending', AND
-      b) it is the last day of the current month, OR
-         30+ days have passed since submission with no manager action.
+    An employee may escalate a report only if it is still 'pending', AND any one of:
+      a) it is the last day of the current month, OR
+      b) 30+ days have passed since submission with no manager action, OR
+      c) the report belongs to a previous month (e.g. a June report while it is July).
+    report_date is ISO 'YYYY-MM-DD'.
     """
     if status != "pending":
         return False
     today = today or date.today()
     if is_last_day_of_month(today):
         return True
-    age_days = (today - created_at.date()).days
-    return age_days >= 30
+    if (today - created_at.date()).days >= 30:
+        return True
+    if report_date:
+        try:
+            rd = datetime.strptime(report_date, "%Y-%m-%d").date()
+            if (rd.year, rd.month) < (today.year, today.month):   # a past month
+                return True
+        except Exception:
+            pass
+    return False
